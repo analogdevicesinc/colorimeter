@@ -1,0 +1,945 @@
+#! /usr/bin/env python
+# -*- coding: iso-8859-15 -*-
+#
+# Copyright (C) 2014 Analog Devices, Inc.
+#
+# All rights reserved.
+# 
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#     - Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     - Redistributions in binary form must reproduce the above copyright
+#       notice, this list of conditions and the following disclaimer in
+#       the documentation and/or other materials provided with the
+#       distribution.
+#     - Neither the name of Analog Devices, Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#     - The use of this software may or may not infringe the patent rights
+#       of one or more patent holders.  This license does not release you
+#       from the requirement that you obtain separate licenses from these
+#       patent holders to use this software.
+#     - Use of the software either in source or binary form, must be run
+#       on or directly connected to an Analog Devices Inc. component.
+#    
+# THIS SOFTWARE IS PROVIDED BY ANALOG DEVICES "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
+# INCLUDING, BUT NOT LIMITED TO, NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A
+# PARTICULAR PURPOSE ARE DISCLAIMED.
+#
+# IN NO EVENT SHALL ANALOG DEVICES BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, INTELLECTUAL PROPERTY
+# RIGHTS, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
+# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF 
+# THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+from gi.repository import Gtk, GObject, Gio, Gdk
+import threading
+import time
+import os
+import cairo
+import sys
+import subprocess
+import math
+import random
+
+from fake_device import FakeDevice
+from device import Device
+from sample_library import Sample, SampleLibrary
+
+class AbsorbancePlot(object):
+    
+    def __init__(self, color):
+        self.color = color
+        self.values = {}
+
+    def clear(self):
+        self.values = {}
+
+    def clear_value(self, key):
+        if key in self.values:
+            del self.values[key]
+
+    def set_value(self, key, value):
+        self.values[key] = value
+
+    def draw(self, cr, w, h):
+
+        maxval = 3.0
+        radius = max(1, int(w / 100.0))
+
+        cr.save()
+        cr.translate(0.5, 0.5)
+        cr.set_font_size(5 + radius * 5)
+        cr.set_line_width(radius)
+        cr.set_line_cap(cairo.LINE_CAP_ROUND)
+        cr.set_source_rgba(0.5, 0.5, 0.5)
+        left_text_margin, top_text_margin = cr.text_extents('1.0')[2:4]
+        left_margin = left_text_margin + radius * 5
+        top_margin = top_text_margin + radius * 5
+        bottom_margin = radius * 6 + top_text_margin * 1.5
+        right_margin = 0
+
+        plot_w = w - left_margin - right_margin
+        plot_h = h - top_margin - bottom_margin
+
+        for i in range(0, 6):
+            y = int(i * plot_h / 6.0) + top_margin
+            cr.move_to(left_margin - radius * 2, y)
+            cr.line_to(left_margin + radius * 2, y)
+            text = '{:.1f}'.format(maxval - (maxval / 6 * i))
+            tw, th = cr.text_extents(text)[2:4]
+            cr.move_to(left_text_margin - tw, y + th / 2)
+            cr.show_text(text)
+        cr.stroke()
+        cr.move_to(left_margin, top_text_margin)
+        cr.line_to(left_margin, top_margin + plot_h + radius * 4)
+        cr.stroke()
+        cr.move_to(left_margin - radius * 4, top_margin + plot_h)
+        cr.line_to(left_margin + plot_w + radius * 4, top_margin + plot_h)
+        cr.stroke()
+        cr.restore()
+
+        if not self.values:
+            return
+
+        bar_margin = 5 * radius
+        bar_width = plot_w / len(self.values) - 2 * bar_margin
+
+        if bar_width > 150:
+            bar_width = 150
+            bar_margin = (plot_w / len(self.values) - bar_width) / 2
+
+        cr.save()
+        for i in range(0, 25):
+            cr.set_font_size(5 + radius * 8 - i)
+            tw, th = cr.text_extents("1.0000")[2:4]
+            if tw <= bar_width + bar_margin:
+                break
+        cr.set_line_width(radius)
+        cr.translate(left_margin, top_margin)
+        x = bar_margin
+        for key, val in sorted(self.values.items()):
+            bar_height = plot_h * (val / 3.0)
+            y = plot_h - bar_height
+            cr.rectangle(x, y, bar_width, bar_height)
+            cr.set_source_rgb(*self.color)
+            cr.fill_preserve()
+            cr.set_source_rgb(0.5, 0.5, 0.5)
+            cr.stroke()
+            text = '{:.4f}'.format(val)
+            tw, th = cr.text_extents(text)[2:4]
+            cr.move_to(x + (bar_width - tw) / 2, y - radius * 2)
+            cr.show_text(text)
+
+            tw, th = cr.text_extents(key)[2:4]
+            cr.move_to(x + (bar_width - tw) / 2, plot_h + th + 2 * radius)
+            cr.show_text(key)
+            x += bar_width + 2*bar_margin
+        cr.restore()
+
+class Plot(object):
+    
+    def __init__(self, color, max_size):
+        self.samples = []
+        self.color = color
+        self.max_size = max_size
+
+    def add_sample(self, sample):
+        if len(self.samples) >= 100:
+            self.samples = self.samples[1:] + [sample]
+        else:
+            self.samples.append(sample)
+
+    def clear(self):
+        self.samples = []
+
+    def draw(self, cr, w, h):
+        maxval = reduce(max, self.samples, 0.0)
+        if maxval < 0.1:
+            maxval = 0.1
+
+        radius = max(1.0, float(w) / self.max_size / 5)
+
+        cr.save()
+        cr.translate(0.5, 0.5)
+        cr.set_font_size(5 + radius * 5)
+        cr.set_line_width(radius)
+        cr.set_line_cap(cairo.LINE_CAP_ROUND)
+        cr.set_source_rgba(0.5, 0.5, 0.5)
+        text_margin = cr.text_extents('1000.00')[2]
+        left_margin = text_margin + radius * 5
+        top_margin = radius * 5
+        bottom_margin = radius * 5
+        right_margin = text_margin + 16 * radius
+
+        plot_w = w - left_margin - right_margin
+        plot_h = h - top_margin - bottom_margin
+
+        for i in range(0, 5):
+            y = int(i * plot_h / 5.0) + top_margin
+            cr.move_to(left_margin - radius * 2, y)
+            cr.line_to(left_margin + radius * 2, y)
+            text = '{:.2f}'.format(maxval - (maxval / 5 * i))
+            tw, th = cr.text_extents(text)[2:4]
+            cr.move_to(text_margin - tw, y + th / 2)
+            cr.show_text(text)
+        cr.stroke()
+        for i in range(1, 11):
+            x = int(i * plot_w / 10.0) + left_margin
+            if (i == 5):
+                m = 4
+            else:
+                m = 2
+            cr.move_to(x, top_margin + plot_h - radius * m)
+            cr.line_to(x, top_margin + plot_h + radius * m)
+        cr.move_to(left_margin, 0)
+        cr.line_to(left_margin, top_margin + plot_h + radius * 4)
+        cr.stroke()
+        cr.move_to(left_margin - radius * 4, top_margin + plot_h)
+        cr.line_to(left_margin + plot_w + radius * 4, top_margin + plot_h)
+        cr.stroke()
+        cr.restore()
+
+        offset = self.max_size - len(self.samples) + 1
+
+        d = float(plot_w) /  self.max_size
+        p = []
+        for i, sample in enumerate(self.samples):
+            x = int(d * (i + offset)) + 0.5
+            y = int((1.0 - sample / maxval) * plot_h) + 0.5
+            p.append((x, y))
+
+        cr.save()
+        cr.translate(0.5, 0.5)
+        cr.translate(left_margin, top_margin)
+        cr.set_source_rgba(0.5, 0.5, 0.5)
+        cr.set_line_width(max(1.0, radius / 2.0))
+        for x, y in p:
+            cr.line_to(x, y)
+        cr.stroke()
+
+        cr.set_source_rgba(*self.color)
+        for x, y in p:
+            cr.arc(x, y, radius, 0.0, 2*math.pi)
+            cr.stroke()
+
+        if len(self.samples):
+            cr.set_font_size(7 + radius * 6)
+            cr.set_source_rgba(0.5, 0.5, 0.5)
+            cr.set_line_width(1)
+            cr.move_to(plot_w + radius * 2, p[-1][1])
+            cr.line_to(plot_w + radius * 5, p[-1][1])
+            cr.line_to(plot_w + radius * 10, radius * 5)
+            cr.line_to(plot_w + radius * 13, radius * 5)
+            cr.stroke()
+            text = '{:.2f}'.format(self.samples[-1])
+            tw, th = cr.text_extents(text)[2:4]
+            cr.move_to(plot_w + radius * 14, radius * 5 + th / 2)
+            cr.show_text(text)
+
+        cr.restore()
+
+class ColorimeterDemo(): 
+
+    WARMUP_TIME = 5.0
+
+    LED_NONE = 0
+    LED_RED = 1
+    LED_GREEN = 2
+    LED_BLUE = 3
+
+    TEXT_LED = {
+        LED_NONE: 'None',
+        LED_RED: 'Red',
+        LED_GREEN: 'Green',
+        LED_BLUE: 'Blue'
+    }
+
+    COLORS_LED = {
+        LED_RED: (204/256.0, 0, 0),
+        LED_GREEN: (115/256.0, 210/256.0, 22/256.0),
+        LED_BLUE: (52/256.0, 101/256.0, 164/256.0),
+    }
+
+    CHANNEL_REFERENCE = 0
+    CHANNEL_SAMPLE = 1
+
+    TEXT_CHANNEL = {
+        CHANNEL_REFERENCE: 'Reference',
+        CHANNEL_SAMPLE: 'Sample'
+    }
+
+    GAIN_33k = 0
+    GAIN_1M = 1
+
+    TEXT_GAIN = {
+        GAIN_33k: '33k',
+        GAIN_1M: '1M'
+    }
+
+    PLOT_REFERENCE = 0
+    PLOT_SAMPLE = 1
+    PLOT_ABSORBANCE = 2
+
+    COLORS_PLOT = {
+        PLOT_REFERENCE: (204/256.0, 0, 0),
+        PLOT_SAMPLE: (115/256.0, 210/256.0, 22/256.0),
+        PLOT_ABSORBANCE: (52/256.0, 101/256.0, 164/256.0),
+    }
+
+    def __init__(self, dummy = False):
+        builder = Gtk.Builder()
+        builder.add_from_file('colorimeter_demo.glade')
+
+        self.dummy = True
+        self.dummy_dir = 1
+
+        self.gain = [self.GAIN_33k, self.GAIN_33k]
+        self.led = self.LED_NONE
+
+        self.analyse_run = False
+        self.acquire_data = False
+        try:
+            self.device = Device()
+        except Exception, e:
+            print ("Device not found: %s" % str(e))
+            self.device = FakeDevice()
+        self.calibration_run = False
+
+        self.calib_data = {
+            'offset': {
+                self.CHANNEL_REFERENCE: {
+                    self.GAIN_33k: 0,
+                    self.GAIN_1M: 0
+                },
+                self.CHANNEL_SAMPLE: {
+                    self.GAIN_33k: 0,
+                    self.GAIN_1M: 0
+                }
+            },
+            'gain': {
+                self.LED_RED: 1.0,
+                self.LED_GREEN: 1.0,
+                self.LED_BLUE: 1.0
+            }
+        }
+
+        self.sample_library = SampleLibrary(os.path.expanduser('~/.colorimeter/library/'))
+
+        try:
+            self.calib_data = self.import_calibration_data(os.path.expanduser('~/.colorimeter/calib_data'))
+        except Exception, e:
+            print(e)
+
+        if not dummy:
+             try:
+                for dev in os.listdir('/sys/bus/iio/devices/'):
+                     f = open('/sys/bus/iio/devices/{}/name'.format(dev))
+                     name = f.read().strip()
+                     f.close()
+                     if name == 'ad7173':
+                         print('Found ad7173: {}'.format(dev))
+                         self.dummy = False
+                         self.iio_device = '/sys/bus/iio/devices/{}'.format(dev)
+                         break
+             except:
+                 pass
+
+#        self.drawing_area = builder.get_object('drawingarea')
+ #       self.drawing_area.connect('draw', self.draw_pressure_bar)
+
+        self.analyse_status = builder.get_object('analyse_status')
+
+        self.analyse_button = builder.get_object('analyse_button')
+        self.analyse_button.connect('clicked', self.analyse_button_clicked)
+        self.match_sample_button = builder.get_object('match_sample_button')
+        self.match_sample_button.connect('clicked', self.match_sample_clicked)
+        self.save_sample_button = builder.get_object('save_sample_button')
+        self.save_sample_button.connect('clicked', self.save_sample_clicked)
+        self.analyse_button_group = builder.get_object('analyse_button_group')
+        self.save_sample_dialog = builder.get_object('save_sample_dialog')
+        self.save_sample_name_entry = builder.get_object('save_sample_name_entry')
+        self.matched_sample_label = builder.get_object('matched_sample_label')
+        self.match_score_mse_label = builder.get_object('match_score_mse_label')
+        self.match_score_mape_label = builder.get_object('match_score_mape_label')
+
+        self.acquire_data_button = builder.get_object('acquire_data_button')
+        self.acquire_data_button.connect('clicked', self.acquire_data_clicked)
+
+        builder.get_object('lpf_cutoff_freq').connect('value-changed', self.lpf_cutoff_freq_changed)
+        builder.get_object('excitation_freq').connect('value-changed', self.excitation_freq_changed)
+
+        self.calibration_dialog = builder.get_object('calibration_dialog')
+        self.calibration_status = builder.get_object('calibration_status')
+        self.gain_adjustment = {}
+        self.gain_adjustment[self.LED_RED] = builder.get_object('red_gain')
+        self.gain_adjustment[self.LED_GREEN] = builder.get_object('green_gain')
+        self.gain_adjustment[self.LED_BLUE] = builder.get_object('blue_gain')
+        self.offset_adjustment = {}
+        self.offset_adjustment[self.CHANNEL_REFERENCE] = {}
+        self.offset_adjustment[self.CHANNEL_REFERENCE][self.GAIN_33k] = builder.get_object('reference_ch_33k_offset')
+        self.offset_adjustment[self.CHANNEL_REFERENCE][self.GAIN_1M] = builder.get_object('reference_ch_1m_offset')
+        self.offset_adjustment[self.CHANNEL_SAMPLE] = {}
+        self.offset_adjustment[self.CHANNEL_SAMPLE][self.GAIN_33k] = builder.get_object('sample_ch_33k_offset')
+        self.offset_adjustment[self.CHANNEL_SAMPLE][self.GAIN_1M] = builder.get_object('sample_ch_1m_offset')
+
+
+        builder.get_object('calibrate_menu_item').connect('activate', self.show_calibration_dialog)
+
+        self.window = builder.get_object('main_window')
+        self.window.connect('destroy', self.destroy)
+
+        builder.get_object('quit_menu_item').connect('activate', lambda w: self.window.destroy())
+
+        self.led_combobox = builder.get_object('led_select')
+        self.gain_combobox = {}
+        self.gain_combobox[self.CHANNEL_REFERENCE] = builder.get_object('ch0_gain_select')
+        self.gain_combobox[self.CHANNEL_SAMPLE] = builder.get_object('ch1_gain_select')
+        self.absorbance_area = {}
+        self.absorbance_area[self.LED_RED] = builder.get_object('red_absorbance')
+        self.absorbance_area[self.LED_GREEN] = builder.get_object('green_absorbance')
+        self.absorbance_area[self.LED_BLUE] = builder.get_object('blue_absorbance')
+
+        self.absorbance_plot = {}
+        for k, d in self.absorbance_area.items():
+            self.absorbance_plot[k] = AbsorbancePlot(self.COLORS_LED[k])
+            d.connect('draw', self.draw_absorbance, self.absorbance_plot[k])
+            d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
+
+        self.plots = {}
+        self.plot_area = {}
+        self.plot_area[self.PLOT_REFERENCE] = builder.get_object('plot_reference')
+        self.plot_area[self.PLOT_SAMPLE] = builder.get_object('plot_sample')
+        self.plot_area[self.PLOT_ABSORBANCE] = builder.get_object('plot_absorbance')
+        for k, d in self.plot_area.items():
+            self.plots[k] = Plot(self.COLORS_PLOT[k], 100)
+            d.connect('draw', self.draw_plot, k)
+            d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
+
+        self.library_absorbance_area = {}
+        self.library_absorbance_area[self.LED_RED] = builder.get_object('library_red_absorbance')
+        self.library_absorbance_area[self.LED_GREEN] = builder.get_object('library_green_absorbance')
+        self.library_absorbance_area[self.LED_BLUE] = builder.get_object('library_blue_absorbance')
+        self.library_absorbance_plot = {}
+        for k, d in self.library_absorbance_area.items():
+            self.library_absorbance_plot[k] = AbsorbancePlot(self.COLORS_LED[k])
+            d.connect('draw', self.draw_absorbance, self.library_absorbance_plot[k])
+            d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
+
+        self.library_view = builder.get_object('sample_library_view')
+        self.library_store = builder.get_object('sample_library_store')
+        self.library_remove_button = builder.get_object('sample_library_remove_button')
+        self.library_remove_button.connect('clicked', self.sample_library_remove_button_clicked)
+
+        self.library_view.get_selection().set_mode(Gtk.SelectionMode.MULTIPLE)
+        self.library_view.get_selection().connect('changed', self.sample_library_selection_changed)
+        self.library_view.get_selection().set_select_function(self.sample_library_selection_filter, None)
+
+        self.led_combobox.set_active(0)
+        self.gain_combobox[self.CHANNEL_REFERENCE].set_active(0)
+        self.gain_combobox[self.CHANNEL_SAMPLE].set_active(0)
+
+        self.sample_library_store_refresh()
+
+        self.led_combobox.connect('changed', self.led_combobox_changed)
+        for k, d in self.gain_combobox.items():
+            d.connect('changed', self.gain_combobox_changed, k)
+
+        self.device.select_led(self.LED_NONE)
+        self.device.select_gain(self.CHANNEL_REFERENCE, self.GAIN_33k)
+        self.device.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
+        self.device.set_lpf_cutoff_frequency(50)
+        self.device.set_excitation_frequency(500)
+
+        self.window.show()
+
+    def destroy(self, widget):
+        self.calibration_abort()
+        self.analyse_abort()
+        self.plot_stop()
+        Gtk.main_quit()
+
+    def sample_library_remove_button_clicked(self, widget):
+        selection = self.library_view.get_selection()
+        for row in selection.get_selected_rows()[1]:
+            it = self.library_store.get_iter(row)
+            sample = self.library_store.get_value(it, 0)
+            self.sample_library.remove(sample)
+        self.sample_library_store_refresh()
+
+    def sample_library_store_refresh(self):
+        self.library_store.clear()
+        for sample in self.sample_library:
+            self.library_store.append((sample, sample.name, ''))
+
+    def sample_library_selection_filter(self, selection, model, path, path_currently_selected, data):
+        if len(selection.get_selected_rows()[1]) > 3 and not path_currently_selected:
+            return False
+        return True
+
+    def sample_library_selection_changed(self, selection):
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.library_absorbance_plot[led].clear()
+        for row in self.library_store:
+            self.library_store.set_value(row.iter, 2, '')
+        for i, row in enumerate(selection.get_selected_rows()[1]):
+            it = self.library_store.get_iter(row)
+            short = "#%d" % (i + 1)
+            self.library_store.set_value(it, 2, '(%s)' % short)
+            sample = self.library_store.get_value(it, 0)
+            for i, led in enumerate((self.LED_RED, self.LED_GREEN, self.LED_BLUE)):
+                self.library_absorbance_plot[led].set_value(short, sample.absorbance[i])
+
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.library_absorbance_area[led].queue_draw()
+        self.library_remove_button.set_sensitive(selection.get_selected_rows() is not None)
+
+    def save_sample_clicked(self, widget):
+        self.save_sample_name_entry.set_text('')
+        resp = self.save_sample_dialog.run()
+        self.save_sample_dialog.hide()
+        if resp == Gtk.ResponseType.ACCEPT:
+            name = self.save_sample_name_entry.get_text()
+            if not name:
+                return
+            sample = Sample(name, *self.current_sample.absorbance)
+            self.sample_library.add(sample)
+            self.sample_library_store_refresh()
+
+    def match_sample_clicked(self, widget):
+        match = self.sample_library.match(self.current_sample)    
+        if match:
+            mse = 0
+            mape = 0
+            for i in range(0, 3):
+                a = self.current_sample.absorbance[i]
+                b = match.absorbance[i]
+                c = b - a
+                d = c / b
+
+                mse += c * c
+                mape += abs(d)
+
+            mse /= 3
+            mape /= 3
+
+        if not match or mape > 0.4:
+            self.matched_sample_label.set_text('N/A')
+            self.match_score_mse_label.set_text('N/A')
+            self.match_score_mape_label.set_text('N/A')
+            for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+                self.absorbance_plot[led].clear_value('#2')
+                self.absorbance_area[led].queue_draw()
+            return
+
+        for i, led in enumerate((self.LED_RED, self.LED_GREEN, self.LED_BLUE)):
+            self.absorbance_plot[led].set_value('#2', match.absorbance[i])
+            self.absorbance_area[led].queue_draw()
+
+
+        self.matched_sample_label.set_text(match.name)
+        self.match_score_mse_label.set_text('%.5f' % mse)
+        self.match_score_mape_label.set_text('%.5f' % mape)
+
+    def set_calibration_dialog_data(self, calib_data):
+        for ch in (self.CHANNEL_REFERENCE, self.CHANNEL_SAMPLE):
+            for gain in (self.GAIN_33k, self.GAIN_1M):
+                self.offset_adjustment[ch][gain].set_value(calib_data['offset'][ch][gain])
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.gain_adjustment[led].set_value(calib_data['gain'][led])
+
+    def get_calibration_dialog_data(self):
+        calib_data = {'offset': {}, 'gain': {}}
+        for ch in (self.CHANNEL_REFERENCE, self.CHANNEL_SAMPLE):
+            calib_data['offset'][ch] = {}
+            for gain in (self.GAIN_33k, self.GAIN_1M):
+                calib_data['offset'][ch][gain] = int(self.offset_adjustment[ch][gain].get_value())
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            calib_data['gain'][led] = self.gain_adjustment[led].get_value()
+        return calib_data
+
+    def import_calibration_data(self, filename):
+        f = open(filename, 'r')
+        line = f.read()
+        f.close()
+        values = [x.strip() for x in line.split(' ')]
+        if len(values) < 7:
+            return None
+        calib_data = {
+            'offset': {
+                self.CHANNEL_REFERENCE: {
+                    self.GAIN_33k: int(values[0]),
+                    self.GAIN_1M: int(values[1])
+                },
+                self.CHANNEL_SAMPLE: {
+                    self.GAIN_33k: int(values[2]),
+                    self.GAIN_1M: int(values[3])
+                }
+            },
+            'gain': {
+                self.LED_RED: float(values[4]),
+                self.LED_GREEN: float(values[5]),
+                self.LED_BLUE: float(values[6])
+            }
+        }
+        return calib_data
+    
+    def export_calibration_data(self, filename, calib_data):
+        if not os.path.exists(os.path.dirname(filename)):
+            os.makedirs(os.path.dirname(filename), 0755)
+        f = open(filename, 'w')
+        f.write('%d %d %d %d %f %f %f' % (
+            calib_data['offset'][self.CHANNEL_REFERENCE][self.GAIN_33k],
+            calib_data['offset'][self.CHANNEL_REFERENCE][self.GAIN_1M],
+            calib_data['offset'][self.CHANNEL_SAMPLE][self.GAIN_33k],
+            calib_data['offset'][self.CHANNEL_SAMPLE][self.GAIN_1M],
+            calib_data['gain'][self.LED_RED],
+            calib_data['gain'][self.LED_GREEN],
+            calib_data['gain'][self.LED_BLUE]
+            )
+        )
+        f.close()
+
+    def calibration_export_clicked(self):
+        dialog = Gtk.FileChooserDialog("Export Calibration Data", self.window,
+            Gtk.FileChooserAction.SAVE, (
+                "_Cancel", Gtk.ResponseType.CANCEL,
+                "_Save", Gtk.ResponseType.ACCEPT
+            ))
+        resp = dialog.run()
+        if resp == Gtk.ResponseType.ACCEPT:
+            calib_data = self.get_calibration_dialog_data()
+            self.export_calibration_data(dialog.get_filename(), calib_data)
+        dialog.destroy()
+
+    def calibration_import_clicked(self):
+        dialog = Gtk.FileChooserDialog("Import Calibration Data", self.window,
+            Gtk.FileChooserAction.SAVE, (
+                "_Cancel", Gtk.ResponseType.CANCEL,
+                "_Open", Gtk.ResponseType.ACCEPT
+            ))
+        resp = dialog.run()
+        if resp == Gtk.ResponseType.ACCEPT:
+            calib_data = self.import_calibration_data(dialog.get_filename())
+            self.set_calibration_dialog_data(calib_data)
+        dialog.destroy()
+
+    def show_calibration_dialog(self, item):
+        self.analyse_abort()
+        self.plot_stop()
+        self.calibration_status.set_text('')
+        self.calibration_status.set_fraction(0)
+        self.set_calibration_dialog_data(self.calib_data)
+        while True:
+            ret = self.calibration_dialog.run()
+            if ret == Gtk.ResponseType.OK:
+                self.calib_data = self.get_calibration_dialog_data()
+                self.export_calibration_data(os.path.expanduser('~/.colorimeter/calib_data'),
+                    self.calib_data)
+                break
+            elif ret == Gtk.ResponseType.CANCEL or ret == Gtk.ResponseType.DELETE_EVENT:
+                break
+            elif ret == 1:
+                self.calibration_start()
+            elif ret == 2:
+                self.calibration_export_clicked()
+            elif ret == 3:
+                self.calibration_import_clicked()
+        self.calibration_abort()
+        self.calibration_dialog.hide()
+
+    def led_combobox_changed(self, widget):
+        self.select_led(widget.get_active())
+
+    def gain_combobox_changed(self, widget, channel):
+        self.select_gain(channel, widget.get_active())
+
+    def lpf_cutoff_freq_changed(self, adjustment):
+        self.device.set_lpf_cutoff_frequency(adjustment.get_value())
+
+    def excitation_freq_changed(self, adjustment):
+        self.device.set_excitation_frequency(adjustment.get_value())
+
+    def select_led(self, led):
+        if self.led == led:
+            return
+        self.led = led
+        self.device.select_led(led)
+        self.led_combobox.set_active(led)
+
+    def select_gain(self, channel, gain):
+        if self.gain[channel] == gain:
+            return
+        self.gain[channel] = gain
+        self.device.select_gain(channel, gain)
+        self.gain_combobox[channel].set_active(gain)
+
+    def convert_voltage_to_ampere(self, channel, voltage):
+        if self.gain[channel] == self.GAIN_33k:
+            r = 33000.0
+        else:
+            r = 1000000.0
+        voltage -= self.calib_data['offset'][channel][self.gain[channel]]
+        if voltage < 0:
+            voltage = 0
+
+        return voltage  / r
+
+    def calibrate_button_clicked(self, widget):
+        if not widget.get_active():
+            self.calibration_start()
+        else:
+            self.calibration_abort()
+
+    def calibration_start(self):
+        if self.calibration_run:
+            return
+        self.calibration_run = True
+        self.calibration_progress = 0.0
+        self.calibration_status.set_text('Starting...')
+        self.calibration_status.set_fraction(0)
+        self.calibration_thread = threading.Thread(target = self.calibration_thread_fn)
+        self.calibration_thread.daemon = True
+        self.calibration_thread.start()
+
+    def calibration_abort(self):
+        if not self.calibration_run:
+            return
+        self.calibration_run = False
+        self.calibration_thread.join()
+        self.calibration_thread = None
+        self.select_led(self.LED_NONE)
+        self.calibration_status.set_text('Aborted...')
+        self.calibration_status.set_fraction(0)
+
+    def calibration_done(self, calib_data):
+        self.set_calibration_dialog_data(calib_data)
+
+    def update_calibration_status(self, text):
+        self.calibration_status.set_text(text)
+        self.calibration_progress += 1
+        self.calibration_status.set_fraction(self.calibration_progress / 36.0)
+
+    def calibration_thread_fn(self):
+        self.select_led(self.LED_NONE)
+        time.sleep(0.1)
+
+        calib_data = {
+            'offset': {self.CHANNEL_REFERENCE: {}, self.CHANNEL_SAMPLE: {}},
+            'gain': {}
+        }
+
+        for gain in (self.GAIN_33k, self.GAIN_1M):
+            GObject.idle_add(self.update_calibration_status,
+                'Calibrating Offset (%s)' % (self.TEXT_GAIN[gain]))
+            for ch in (self.CHANNEL_REFERENCE, self.CHANNEL_SAMPLE):
+                self.select_gain(ch, gain)
+            time.sleep(0.2)
+            ch_ref, ch_sample = self.device.read_sample(1)
+            calib_data['offset'][self.CHANNEL_REFERENCE][gain] = ch_ref
+            calib_data['offset'][self.CHANNEL_SAMPLE][gain] = ch_sample
+
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.select_led(led)
+            for i in range(0, 10):
+                if not self.calibration_run:
+                    return
+                GObject.idle_add(self.update_calibration_status,
+                    'Calibrating %s LED Gain (warmup)' % (self.TEXT_LED[led]))
+                time.sleep(self.WARMUP_TIME / 10.0)
+            GObject.idle_add(self.update_calibration_status,
+                'Calibrating %s LED Gain' % (self.TEXT_LED[led]))
+
+            ch_ref, ch_sample = self.device.read_sample(5)
+
+            k = float(ch_sample) / float(ch_ref)
+            calib_data['gain'][led] = k
+
+        GObject.idle_add(self.update_calibration_status, 'Calibration Done')
+        self.select_led(self.LED_NONE)
+        GObject.idle_add(self.calibration_done, calib_data)
+
+    def calc_absorbance(self, ch_ref, ch_sample):
+        if self.led == self.LED_NONE:
+            return 0.0
+
+        if ch_ref == 0:
+            return 0.0
+        if ch_sample == 0:
+            return 1.0
+
+        try:
+            k = self.calib_data['gain'][self.led]
+            a = math.log(k * float(ch_ref) / float(ch_sample)) / math.log(10)
+            return max(a, 0.0)
+        except:
+            return 1.0
+
+    def analyse_button_clicked(self, widget):
+        if widget.get_active():
+            self.analyse_start()
+        else:
+            self.analyse_abort()
+
+    def analyse_start(self):
+        if self.analyse_run:
+            return
+        self.plot_stop()
+        self.analyse_run = True
+        self.analyse_button_group.set_sensitive(False)
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.absorbance_plot[led].clear()
+            self.absorbance_area[led].queue_draw()
+        self.matched_sample_label.set_text('N/A')
+        self.match_score_mse_label.set_text('N/A')
+        self.match_score_mape_label.set_text('N/A')
+        self.analyse_status.set_text('Starting...')
+        self.analyse_status.set_fraction(0)
+        self.analyse_thread = threading.Thread(target = self.analyse_thread_fn)
+        self.analyse_thread.daemon = True
+        self.analyse_thread.start()
+
+    def analyse_abort(self):
+        if not self.analyse_run:
+            return
+        self.analyse_run = False
+        self.analyse_thread.join()
+        self.analyse_thread = None
+        self.analyse_status.set_text('Aborted...')
+        self.analyse_status.set_fraction(0)
+        self.select_led(self.LED_NONE)
+        self.analyse_button.set_active(False)
+        
+    def analyse_done(self, result):
+        self.update_analyse_status('Done')
+        self.analyse_run = False
+        self.analyse_button.set_active(False)
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.absorbance_plot[led].set_value('#1', result[led])
+            self.absorbance_area[led].queue_draw()
+        self.current_sample = Sample('Current', result[self.LED_RED],
+            result[self.LED_GREEN], result[self.LED_BLUE])
+        self.analyse_button_group.set_sensitive(True)
+
+    def update_analyse_status(self, text):
+        self.analyse_status.set_text(text)
+        f = self.analyse_status.get_fraction()
+        self.analyse_status.set_fraction(f + 1.0 / 34.0)
+
+    def analyse_thread_fn(self):
+        self.select_led(self.LED_NONE)
+        self.select_gain(self.CHANNEL_REFERENCE, self.GAIN_33k)
+        self.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
+        time.sleep(0.1)
+
+        absorbance = {}
+
+        for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            self.select_led(led)
+            for i in range(0, 10):
+                if not self.analyse_run:
+                    return
+                GObject.idle_add(self.update_analyse_status,
+                    'Warming up %s LED' % (self.TEXT_LED[led]))
+                time.sleep(self.WARMUP_TIME / 10.0)
+
+            GObject.idle_add(self.update_analyse_status,
+                'acquire data for %s LED' % (self.TEXT_LED[led]))
+            ch_ref, ch_sample = self.device.read_sample(5)
+
+            absorbance[led] = self.calc_absorbance(ch_ref, ch_sample)
+
+        if not self.analyse_run:
+            return
+
+        self.select_led(self.LED_NONE)
+        GObject.idle_add(self.analyse_done, absorbance)
+
+    def draw_absorbance(self, widget, cr, plot):
+        a = widget.get_allocation()
+        plot.draw(cr, a.width, a.height)
+        return
+
+        if self.absorbance is not None:
+            a.width /= 2.3
+            # Between 0.0 and 3.0
+            scale = 1.0 - min(self.absorbance[led] / 3.0, 1.0)
+#            scale *= self.absorbance_animation
+            cr.set_source_rgba(*(self.COLORS_LED[led] + (self.absorbance_animation, ) ))
+#            cr.rectangle(0, a.height * (1.0 - scale), a.width, a.height * scale)
+            cr.new_sub_path()
+            cr.move_to(5, a.height-5)
+            cr.line_to(5, a.height * (1.0 - scale) + 15)
+            cr.arc(15, a.height * (1.0 - scale) + 15, 10, math.pi, math.pi * 1.5)
+            cr.arc(a.width-15, a.height * (1.0 - scale) + 15, 10, math.pi*1.5, math.pi*2)
+            cr.line_to(a.width-5, a.height * (1.0 - scale) + 15)
+            cr.line_to(a.width-5, a.height-5)
+            cr.close_path()
+            cr.fill_preserve()
+            cr.set_source_rgb(0.5, 0.5, 0.5)
+            cr.set_line_width(2)
+            cr.stroke()
+            label = '%.5f' % self.absorbance[led];
+            cr.select_font_face('Liberation Sans',
+                cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+            cr.set_font_size(10)
+            w, h = cr.text_extents(label)[2:4]
+            if scale < 0.7:
+                cr.move_to((a.width - w) / 2.0, (a.height * (1.0 - scale)))
+            else:
+                cr.move_to((a.width - w) / 2.0, (a.height - h) / 2.0)
+            cr.set_source_rgba(0.0, 0.0, 0.0, self.absorbance_animation)
+            cr.show_text(label)
+
+    def acquire_data_clicked(self, widget):
+        if widget.get_active():
+            self.plot_start()
+        else:
+            self.plot_stop()
+
+    def plot_start(self):
+        self.analyse_abort()
+        self.acquire_data = True
+        for plot in self.plots.values():
+            plot.clear()
+        self.plot_thread = threading.Thread(target = self.capture_samples)
+        self.plot_thread.daemon = True
+        self.plot_thread.start()
+
+    def plot_stop(self):
+        if not self.acquire_data:
+            return
+        self.acquire_data = False
+        self.plot_thread.join()
+        self.plot_thread = None
+        self.acquire_data_button.set_active(False)
+
+    def capture_samples(self):
+        while self.acquire_data:
+            sample = self.device.read_sample(100)
+            ch_ref = self.convert_voltage_to_ampere(self.CHANNEL_REFERENCE, sample[0])
+            ch_sample = self.convert_voltage_to_ampere(self.CHANNEL_SAMPLE, sample[1])
+            absorbance = self.calc_absorbance(ch_ref, ch_sample)
+
+            self.plots[self.PLOT_REFERENCE].add_sample(ch_ref)
+            self.plots[self.PLOT_SAMPLE].add_sample(ch_sample)
+            self.plots[self.PLOT_ABSORBANCE].add_sample(absorbance)
+
+            for p in self.plot_area.values():
+                GObject.idle_add(p.queue_draw)
+            time.sleep(0.1)
+
+    def draw_plot(self, widget, cr, plot):
+        w = widget.get_allocation().width
+        h = widget.get_allocation().height
+        self.plots[plot].draw(cr, w, h)
+ 
+if __name__ == '__main__':
+    dummy = False
+    if len(sys.argv) > 1 and sys.argv[1] == 'dummy':
+        dummy = True
+    GObject.threads_init()
+    ColorimeterDemo(dummy)
+    Gtk.main()
