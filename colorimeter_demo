@@ -667,14 +667,14 @@ class ColorimeterDemo():
             return
         self.led = led
         self.device.select_led(led)
-        self.led_combobox.set_active(led)
+        GObject.idle_add(self.led_combobox.set_active, led)
 
     def select_gain(self, channel, gain):
         if self.gain[channel] == gain:
             return
         self.gain[channel] = gain
         self.device.select_gain(channel, gain)
-        self.gain_combobox[channel].set_active(gain)
+        GObject.idle_add(self.gain_combobox[channel].set_active, gain)
 
     def convert_voltage_to_ampere(self, channel, voltage):
         if self.gain[channel] == self.GAIN_33k:
