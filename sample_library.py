@@ -109,4 +109,4 @@ class SampleLibrary(object):
                 best_score = score
                 best_match = m
 
-        return m
+        return best_match
