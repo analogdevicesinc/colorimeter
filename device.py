@@ -2,6 +2,7 @@ import iio
 import struct
 import time
 import math
+import os
 
 from ctypes import POINTER, Structure, cdll, c_uint, c_int, \
         c_void_p, c_double, byref
@@ -11,12 +12,15 @@ fast_capture = capture_lib.capture_data
 fast_capture.restype = c_int
 fast_capture.archtypes = (c_void_p, c_uint, c_double, c_double)
 
+GPIO_DIR = '/sys/class/gpio/'
+
 class Device(object):
 
     def __init__(self):
         self.ctx = iio.LocalContext()
 
         self.device = None
+        self.gpio = None
         for d in self.ctx.devices:
             if d.name == "axi_ad7175":
                 self.device = d
@@ -24,6 +28,36 @@ class Device(object):
         
         if not self.device:
             raise Exception("No Device found!")
+
+        for chip in os.listdir(GPIO_DIR):
+            if not chip.startswith('gpiochip'):
+                continue
+            if not os.path.isdir(os.path.join(GPIO_DIR, chip)):
+                continue
+            f = open(os.path.join(GPIO_DIR, chip, 'label'))
+            label = f.read().strip()
+            f.close()
+            if label != 'zynq_gpio':
+                continue
+
+            f = open(os.path.join(GPIO_DIR, chip, 'base'))
+            base = int(f.read().strip())
+            f.close()
+            self.gpio = base + 54 + 32
+            break
+        if not self.gpio:
+            raise Exception('No GPIO found!')
+
+        if not os.path.exists(os.path.join(GPIO_DIR, 'gpio%d' % self.gpio)):
+            f = open(os.path.join(GPIO_DIR, 'export'), 'w')
+            f.write('%d\n' % self.gpio)
+            f.close()
+
+        print 'C'
+        f = open(os.path.join(GPIO_DIR, 'gpio%d' % self.gpio, 'direction'), 'w')
+        f.write('low')
+        f.close()
+        
 
         for ch in self.device.channels:
             ch.enabled = True
@@ -33,6 +67,7 @@ class Device(object):
         self.ad7175_reg_write(0x28, 0x30000) # FILTERCON0
         self.ad7175_reg_write(0x20, 0x132000)
         self.ad7175_reg_write(0x21, 0x132000)
+
 
     def ad7175_reg_write(self, reg, val):
         self.device.reg_write(0x48, reg)
@@ -52,7 +87,9 @@ class Device(object):
         self.ad7175_reg_write(0x06, (0xc | led) << 8)
 
     def select_gain(self, gain):
-        pass
+        f = open(os.path.join(GPIO_DIR, 'gpio%d' % self.gpio, 'value'), 'w')
+        f.write('%d\n' % gain)
+        f.close()
 
     def set_excitation_frequency(self, freq):
         if freq < 1:
