@@ -1,37 +1,3 @@
-#
-# Copyright (C) 2014 Analog Devices, Inc.
-#
-# All rights reserved.
-# 
-# Redistribution and use in source and binary forms, with or without modification,
-# are permitted provided that the following conditions are met:
-#     - Redistributions of source code must retain the above copyright
-#       notice, this list of conditions and the following disclaimer.
-#     - Redistributions in binary form must reproduce the above copyright
-#       notice, this list of conditions and the following disclaimer in
-#       the documentation and/or other materials provided with the
-#       distribution.
-#     - Neither the name of Analog Devices, Inc. nor the names of its
-#       contributors may be used to endorse or promote products derived
-#       from this software without specific prior written permission.
-#     - The use of this software may or may not infringe the patent rights
-#       of one or more patent holders.  This license does not release you
-#       from the requirement that you obtain separate licenses from these
-#       patent holders to use this software.
-#     - Use of the software either in source or binary form, must be run
-#       on or directly connected to an Analog Devices Inc. component.
-#    
-# THIS SOFTWARE IS PROVIDED BY ANALOG DEVICES "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
-# INCLUDING, BUT NOT LIMITED TO, NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A
-# PARTICULAR PURPOSE ARE DISCLAIMED.
-#
-# IN NO EVENT SHALL ANALOG DEVICES BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-# EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, INTELLECTUAL PROPERTY
-# RIGHTS, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
-# BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF 
-# THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 import iio
 import struct
 import time
@@ -85,7 +51,7 @@ class Device(object):
             led = led - 1
         self.ad7175_reg_write(0x06, (0xc | led) << 8)
 
-    def select_gain(self, channel, gain):
+    def select_gain(self, gain):
         pass
 
     def set_excitation_frequency(self, freq):
@@ -100,9 +66,14 @@ class Device(object):
     def to_int(self, buf):
         i = (int(buf[3]) << 24) | (int(buf[2]) << 16) | (int(buf[1]) << 8) | int(buf[0])
         return i
+    def to_sint(self, buf):
+        i = (int(buf[2]) << 16) | (int(buf[1]) << 8) | int(buf[0])
+        if i > 2**22:
+            i = i - 2**23 + 1
+        return i
 
     def __read_sample(self, avg = 1):
-        n = 2500
+        n = 5000
         buf = iio.Buffer(self.device, n)
         buf.refill()
         data = self.device.read(buf)
@@ -111,9 +82,9 @@ class Device(object):
         a=  []
         for offset in range(0, n * 16, 16):
             s = data[offset:offset+16]
-            ch1 = self.to_int(s[0:4]) - 2**23
+            ch1 = self.to_sint(s[0:4])
             ch2 = self.to_int(s[4:8])
-            ch3 = self.to_int(s[8:12]) - 2**23
+            ch3 = self.to_sint(s[8:12])
             ch4 = self.to_int(s[12:16])
             phase1 = ch2 / float(2**31) * math.pi
             phase2 = ch4 / float(2**31) * math.pi
@@ -131,5 +102,5 @@ class Device(object):
     def read_sample(self, avg = 1):
         a1 = c_double()
         a2 = c_double()
-        fast_capture(self.device._device, 2500, byref(a1), byref(a2))
+        fast_capture(self.device._device, 5000, byref(a1), byref(a2))
         return (a1.value, a2.value)
