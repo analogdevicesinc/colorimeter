@@ -672,10 +672,10 @@ class ColorimeterDemo():
         self.calibration_dialog.hide()
 
     def led_combobox_changed(self, widget):
-        self.select_led(widget.get_active())
+        self.select_led(widget.get_active(), False)
 
     def gain_combobox_changed(self, widget):
-        self.select_gain(widget.get_active())
+        self.select_gain(widget.get_active(), False)
 
     def lpf_cutoff_freq_changed(self, adjustment):
         self.device.set_lpf_cutoff_frequency(adjustment.get_value())
@@ -683,19 +683,21 @@ class ColorimeterDemo():
     def excitation_freq_changed(self, adjustment):
         self.device.set_excitation_frequency(adjustment.get_value())
 
-    def select_led(self, led):
+    def select_led(self, led, update_combobox = True):
         if self.led == led:
             return
         self.led = led
         self.device.select_led(led)
-        GObject.idle_add(self.led_combobox.set_active, led)
+        if update_combobox:
+            GObject.idle_add(self.led_combobox.set_active, led)
 
-    def select_gain(self, gain):
+    def select_gain(self, gain, update_combobox = True):
         if self.gain == gain:
             return
         self.gain = gain
         self.device.select_gain(gain)
-        GObject.idle_add(self.gain_combobox.set_active, gain)
+        if update_combobox:
+            GObject.idle_add(self.gain_combobox.set_active, gain)
 
     def convert_voltage_to_ampere(self, channel, voltage):
         if self.gain == self.GAIN_33k:
