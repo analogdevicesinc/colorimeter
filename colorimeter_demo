@@ -141,13 +141,15 @@ class AbsorbancePlot(object):
 
 class Plot(object):
     
-    def __init__(self, color, max_size):
+    def __init__(self, color, label, unit, max_size):
         self.samples = []
         self.color = color
+        self.label = label
+        self.unit = unit
         self.max_size = max_size
 
     def add_sample(self, sample):
-        if len(self.samples) >= 100:
+        if len(self.samples) >= self.max_size:
             self.samples = self.samples[1:] + [sample]
         else:
             self.samples.append(sample)
@@ -164,15 +166,33 @@ class Plot(object):
 
         cr.save()
         cr.translate(0.5, 0.5)
-        cr.set_font_size(5 + radius * 5)
+        cr.set_font_size(5 + radius * 6)
         cr.set_line_width(radius)
         cr.set_line_cap(cairo.LINE_CAP_ROUND)
         cr.set_source_rgba(0.5, 0.5, 0.5)
-        text_margin = cr.text_extents('1000.00')[2]
-        left_margin = text_margin + radius * 5
+        text_margin = cr.text_extents('100.00')[2]
         top_margin = radius * 5
         bottom_margin = radius * 5
         right_margin = text_margin + 16 * radius
+
+        text = self.unit
+        tw, th = cr.text_extents(text)[2:4]
+        cr.move_to(text_margin - tw, th)
+        cr.show_text(text)
+
+        top_margin += th
+
+        text = self.label
+        tw, th = cr.text_extents(text)[2:4]
+        cr.move_to(th, (h - tw) / 2 + tw)
+        cr.save()
+        cr.rotate(math.pi/2*3)
+        cr.show_text(text)
+        cr.restore()
+        cr.set_font_size(5 + radius * 5)
+
+        text_margin += th
+        left_margin = text_margin + radius * 5
 
         plot_w = w - left_margin - right_margin
         plot_h = h - top_margin - bottom_margin
@@ -414,7 +434,13 @@ class ColorimeterDemo():
         self.plot_area[self.PLOT_SAMPLE] = builder.get_object('plot_sample')
         self.plot_area[self.PLOT_ABSORBANCE] = builder.get_object('plot_absorbance')
         for k, d in self.plot_area.items():
-            self.plots[k] = Plot(self.COLORS_PLOT[k], 100)
+            if k == self.PLOT_ABSORBANCE:
+                label = 'Absorbance'
+                unit = 'A.U.'
+            else:
+                label = 'Current'
+                unit = 'uA'
+            self.plots[k] = Plot(self.COLORS_PLOT[k], label, unit, 100)
             d.connect('draw', self.draw_plot, k)
             d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
 
