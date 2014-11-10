@@ -616,7 +616,6 @@
                                 </child>
                                 <child>
                                   <object class="GtkLabel" id="label24">
-                                    <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="xalign">0</property>
                                     <property name="label" translatable="yes">LPF Cutoff Frequency (Hz):</property>
@@ -646,7 +645,6 @@
                                 </child>
                                 <child>
                                   <object class="GtkSpinButton" id="spinbutton11">
-                                    <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="invisible_char">●</property>
                                     <property name="xalign">1</property>
@@ -1129,7 +1127,6 @@
                                 </child>
                                 <child>
                                   <object class="GtkLabel" id="label21">
-                                    <property name="visible">True</property>
                                     <property name="can_focus">False</property>
                                     <property name="xalign">0</property>
                                     <property name="label" translatable="yes">LPF Cutoff Frequency (Hz):</property>
@@ -1143,7 +1140,6 @@
                                 </child>
                                 <child>
                                   <object class="GtkSpinButton" id="spinbutton9">
-                                    <property name="visible">True</property>
                                     <property name="can_focus">True</property>
                                     <property name="invisible_char">●</property>
                                     <property name="xalign">1</property>
