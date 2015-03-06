@@ -116,6 +116,9 @@ class FakeDevice(object):
     def set_excitation_frequency(self, freq):
         print("Set Excitation Freq %d" % freq)
 
+    def set_excitation_current(self, current):
+        print("Set Excitation Current %f" % current)
+
     def set_lpf_cutoff_frequency(self, freq):
         print("Set LPF Cutoff Freq %d" % freq)
 

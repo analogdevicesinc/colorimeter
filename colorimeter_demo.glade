@@ -430,18 +430,24 @@
       <action-widget response="-5">calibration_close_button</action-widget>
     </action-widgets>
   </object>
+  <object class="GtkAdjustment" id="green_gain">
+    <property name="upper">2</property>
+    <property name="value">1</property>
+    <property name="step_increment">0.01</property>
+    <property name="page_increment">0.10000000000000001</property>
+  </object>
+  <object class="GtkAdjustment" id="excitation_current">
+    <property name="upper">25</property>
+    <property name="value">12.5</property>
+    <property name="step_increment">0.78125</property>
+    <property name="page_increment">10</property>
+  </object>
   <object class="GtkAdjustment" id="excitation_freq">
     <property name="lower">100</property>
     <property name="upper">100000</property>
     <property name="value">500</property>
     <property name="step_increment">10</property>
     <property name="page_increment">100</property>
-  </object>
-  <object class="GtkAdjustment" id="green_gain">
-    <property name="upper">2</property>
-    <property name="value">1</property>
-    <property name="step_increment">0.01</property>
-    <property name="page_increment">0.10000000000000001</property>
   </object>
   <object class="GtkImage" id="image2">
     <property name="visible">True</property>
@@ -622,7 +628,7 @@
                                   </object>
                                   <packing>
                                     <property name="left_attach">0</property>
-                                    <property name="top_attach">1</property>
+                                    <property name="top_attach">2</property>
                                     <property name="width">1</property>
                                     <property name="height">1</property>
                                   </packing>
@@ -650,6 +656,36 @@
                                     <property name="xalign">1</property>
                                     <property name="invisible_char_set">True</property>
                                     <property name="adjustment">lpf_cutoff_freq</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">1</property>
+                                    <property name="top_attach">2</property>
+                                    <property name="width">1</property>
+                                    <property name="height">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkLabel" id="label31">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="xalign">0</property>
+                                    <property name="label" translatable="yes">Excitation Current (uA):</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">0</property>
+                                    <property name="top_attach">1</property>
+                                    <property name="width">1</property>
+                                    <property name="height">1</property>
+                                  </packing>
+                                </child>
+                                <child>
+                                  <object class="GtkSpinButton" id="spinbutton12">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">True</property>
+                                    <property name="invisible_char">●</property>
+                                    <property name="xalign">1</property>
+                                    <property name="adjustment">excitation_current</property>
+                                    <property name="digits">2</property>
                                   </object>
                                   <packing>
                                     <property name="left_attach">1</property>
@@ -1147,7 +1183,7 @@
                                   </object>
                                   <packing>
                                     <property name="left_attach">1</property>
-                                    <property name="top_attach">1</property>
+                                    <property name="top_attach">2</property>
                                     <property name="width">1</property>
                                     <property name="height">1</property>
                                   </packing>
@@ -1168,7 +1204,11 @@
                                   </object>
                                   <packing>
                                     <property name="left_attach">1</property>
-                                    <property name="top_attach">2</property>
+                                    <property name="top_attach">3</property>
+                                    <property name="width">1</property>
+                                    <property name="height">1</property>
+                                  </packing>
+                                </child>
                                 <child>
                                   <object class="GtkLabel" id="label19">
                                     <property name="visible">True</property>
@@ -1208,7 +1248,7 @@
                                     <property name="can_focus">True</property>
                                     <property name="invisible_char">●</property>
                                     <property name="xalign">1</property>
-                                    <property name="adjustment">excitation_current_adjustment</property>
+                                    <property name="adjustment">excitation_current</property>
                                     <property name="digits">2</property>
                                   </object>
                                   <packing>
@@ -1218,6 +1258,16 @@
                                     <property name="height">1</property>
                                   </packing>
                                 </child>
+                                <child>
+                                  <object class="GtkLabel" id="label33">
+                                    <property name="visible">True</property>
+                                    <property name="can_focus">False</property>
+                                    <property name="xalign">0</property>
+                                    <property name="label" translatable="yes">Excitation Current (uA):</property>
+                                  </object>
+                                  <packing>
+                                    <property name="left_attach">0</property>
+                                    <property name="top_attach">1</property>
                                     <property name="width">1</property>
                                     <property name="height">1</property>
                                   </packing>

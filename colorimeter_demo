@@ -390,6 +390,7 @@ class ColorimeterDemo():
 
         builder.get_object('lpf_cutoff_freq').connect('value-changed', self.lpf_cutoff_freq_changed)
         builder.get_object('excitation_freq').connect('value-changed', self.excitation_freq_changed)
+        builder.get_object('excitation_current').connect('value-changed', self.excitation_current_changed)
 
         self.calibration_dialog = builder.get_object('calibration_dialog')
         self.calibration_status = builder.get_object('calibration_status')
@@ -477,6 +478,7 @@ class ColorimeterDemo():
         self.device.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
         self.device.set_lpf_cutoff_frequency(50)
         self.device.set_excitation_frequency(500)
+        self.device.set_excitation_current(20)
 
         self.window.show()
 
@@ -683,6 +685,9 @@ class ColorimeterDemo():
 
     def lpf_cutoff_freq_changed(self, adjustment):
         self.device.set_lpf_cutoff_frequency(adjustment.get_value())
+
+    def excitation_current_changed(self, adjustment):
+        self.device.set_excitation_current(adjustment.get_value())
 
     def excitation_freq_changed(self, adjustment):
         self.device.set_excitation_frequency(adjustment.get_value())
