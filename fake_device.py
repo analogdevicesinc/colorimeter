@@ -110,8 +110,8 @@ class FakeDevice(object):
         self.x = 0.5
         self.y = 0.5
 
-    def select_gain(self, gain):
-        print("Select Gain %d" % gain)
+    def select_gain(self, ch, gain):
+        print("Select Gain %d %d" % (ch, gain))
 
     def set_excitation_frequency(self, freq):
         print("Set Excitation Freq %d" % freq)

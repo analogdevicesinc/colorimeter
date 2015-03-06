@@ -316,7 +316,7 @@ class ColorimeterDemo():
         self.dummy = True
         self.dummy_dir = 1
 
-        self.gain = self.GAIN_33k
+        self.gain = [self.GAIN_33k, self.GAIN_33k]
         self.led = self.LED_NONE
 
         self.analyse_run = False
@@ -414,7 +414,9 @@ class ColorimeterDemo():
         builder.get_object('quit_menu_item').connect('activate', lambda w: self.window.destroy())
 
         self.led_combobox = builder.get_object('led_select')
-        self.gain_combobox = builder.get_object('ch_gain_select')
+        self.gain_combobox = {}
+        self.gain_combobox[self.CHANNEL_REFERENCE] = builder.get_object('ch_reference_gain_select')
+        self.gain_combobox[self.CHANNEL_SAMPLE] = builder.get_object('ch_sample_gain_select')
         self.absorbance_area = {}
         self.absorbance_area[self.LED_RED] = builder.get_object('red_absorbance')
         self.absorbance_area[self.LED_GREEN] = builder.get_object('green_absorbance')
@@ -462,15 +464,17 @@ class ColorimeterDemo():
         self.library_view.get_selection().set_select_function(self.sample_library_selection_filter, None)
 
         self.led_combobox.set_active(0)
-        self.gain_combobox.set_active(0)
 
         self.sample_library_store_refresh()
 
         self.led_combobox.connect('changed', self.led_combobox_changed)
-        self.gain_combobox.connect('changed', self.gain_combobox_changed)
+        for ch, w in self.gain_combobox.items():
+            w.set_active(0)
+            w.connect('changed', self.gain_combobox_changed, ch)
 
         self.device.select_led(self.LED_NONE)
-        self.device.select_gain(self.GAIN_33k)
+        self.device.select_gain(self.CHANNEL_REFERENCE, self.GAIN_33k)
+        self.device.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
         self.device.set_lpf_cutoff_frequency(50)
         self.device.set_excitation_frequency(500)
 
@@ -674,8 +678,8 @@ class ColorimeterDemo():
     def led_combobox_changed(self, widget):
         self.select_led(widget.get_active(), False)
 
-    def gain_combobox_changed(self, widget):
-        self.select_gain(widget.get_active(), False)
+    def gain_combobox_changed(self, widget, ch):
+        self.select_gain(ch, widget.get_active(), False)
 
     def lpf_cutoff_freq_changed(self, adjustment):
         self.device.set_lpf_cutoff_frequency(adjustment.get_value())
@@ -691,20 +695,20 @@ class ColorimeterDemo():
         if update_combobox:
             GObject.idle_add(self.led_combobox.set_active, led)
 
-    def select_gain(self, gain, update_combobox = True):
-        if self.gain == gain:
+    def select_gain(self, ch, gain, update_combobox = True):
+        if self.gain[ch] == gain:
             return
-        self.gain = gain
-        self.device.select_gain(gain)
+        self.gain[ch] = gain
+        self.device.select_gain(ch, gain)
         if update_combobox:
-            GObject.idle_add(self.gain_combobox.set_active, gain)
+            GObject.idle_add(self.gain_combobox[ch].set_active, gain)
 
     def convert_voltage_to_ampere(self, channel, voltage):
-        if self.gain == self.GAIN_33k:
+        if self.gain[channel] == self.GAIN_33k:
             r = 33000.0
         else:
             r = 1000000.0
-        voltage -= self.calib_data['offset'][channel][self.gain]
+        voltage -= self.calib_data['offset'][channel][self.gain[channel]]
         if voltage < 0:
             voltage = 0
 
@@ -757,7 +761,8 @@ class ColorimeterDemo():
         for gain in (self.GAIN_33k, self.GAIN_1M):
             GObject.idle_add(self.update_calibration_status,
                 'Calibrating Offset (%s)' % (self.TEXT_GAIN[gain]))
-            self.select_gain(gain)
+            self.select_gain(self.CHANNEL_REFERENCE, gain)
+            self.select_gain(self.CHANNEL_SAMPLE, gain)
             time.sleep(0.2)
             ch_ref, ch_sample = self.device.read_sample(1)
             calib_data['offset'][self.CHANNEL_REFERENCE][gain] = ch_ref
@@ -852,7 +857,8 @@ class ColorimeterDemo():
 
     def analyse_thread_fn(self):
         self.select_led(self.LED_NONE)
-        self.select_gain(self.GAIN_33k)
+        self.select_gain(self.CHANNEL_REFERENCE, self.GAIN_33k)
+        self.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
         time.sleep(0.1)
 
         absorbance = {}
