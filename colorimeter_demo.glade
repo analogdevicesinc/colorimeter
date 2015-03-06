@@ -297,7 +297,7 @@
               <object class="GtkLabel" id="label34">
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
-                <property name="label" translatable="yes">For sucessfull calibration the  photodiodes must be shielded from ambient light.</property>
+                <property name="label" translatable="yes">For successful calibration the photo-diodes must be shielded from ambient light.</property>
                 <attributes>
                   <attribute name="weight" value="bold"/>
                 </attributes>
