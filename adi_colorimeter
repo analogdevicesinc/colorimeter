@@ -4,7 +4,7 @@
 # Copyright (C) 2014 Analog Devices, Inc.
 #
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without modification,
 # are permitted provided that the following conditions are met:
 #     - Redistributions of source code must retain the above copyright
@@ -22,16 +22,16 @@
 #       patent holders to use this software.
 #     - Use of the software either in source or binary form, must be run
 #       on or directly connected to an Analog Devices Inc. component.
-#    
+#
 # THIS SOFTWARE IS PROVIDED BY ANALOG DEVICES "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES,
 # INCLUDING, BUT NOT LIMITED TO, NON-INFRINGEMENT, MERCHANTABILITY AND FITNESS FOR A
 # PARTICULAR PURPOSE ARE DISCLAIMED.
 #
 # IN NO EVENT SHALL ANALOG DEVICES BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
 # EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, INTELLECTUAL PROPERTY
-# RIGHTS, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR 
+# RIGHTS, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
 # BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF 
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from gi.repository import Gtk, GObject, Gio, Gdk
@@ -44,12 +44,16 @@ import subprocess
 import math
 import random
 
-from fake_device import FakeDevice
-from device import Device
-from sample_library import Sample, SampleLibrary
+from adi_colorimeter.config import PREFIX
+from adi_colorimeter.fake_device import FakeDevice
+try:
+    from adi_colorimeter.cn0363_device import Device
+except:
+    pass
+from adi_colorimeter.sample_library import Sample, SampleLibrary
 
 class AbsorbancePlot(object):
-    
+
     def __init__(self, color):
         self.color = color
         self.values = {}
@@ -140,7 +144,7 @@ class AbsorbancePlot(object):
         cr.restore()
 
 class Plot(object):
-    
+
     def __init__(self, color, label, unit, max_size):
         self.samples = []
         self.color = color
@@ -261,7 +265,7 @@ class Plot(object):
 
         cr.restore()
 
-class ColorimeterDemo(): 
+class ColorimeterDemo():
 
     WARMUP_TIME = 5.0
 
@@ -311,7 +315,10 @@ class ColorimeterDemo():
 
     def __init__(self, dummy = False):
         builder = Gtk.Builder()
-        builder.add_from_file('colorimeter_demo.glade')
+        if os.path.exists('adi_colorimeter.glade'):
+            builder.add_from_file('adi_colorimeter.glade')
+        else:
+            builder.add_from_file(os.path.join(PREFIX, 'share/adi_colorimeter/adi_colorimeter.glade'))
 
         self.dummy = True
         self.dummy_dir = 1
@@ -321,9 +328,15 @@ class ColorimeterDemo():
 
         self.analyse_run = False
         self.acquire_data = False
+
+        infobar = builder.get_object('infobar')
+        infobar.connect("response", lambda w, r: w.hide())
         try:
             self.device = Device()
         except Exception, e:
+            infobar.get_content_area().get_children()[0].set_text('Device not found: {}. Using demo device.'.format(e))
+            infobar.set_message_type(Gtk.MessageType.ERROR)
+            infobar.show()
             print ("Device not found: %s" % str(e))
             self.device = FakeDevice()
         self.calibration_run = False
@@ -388,9 +401,12 @@ class ColorimeterDemo():
         self.acquire_data_button = builder.get_object('acquire_data_button')
         self.acquire_data_button.connect('clicked', self.acquire_data_clicked)
 
+        self.excitation_freq = builder.get_object('excitation_freq')
+        self.excitation_current = builder.get_object('excitation_current')
+
         builder.get_object('lpf_cutoff_freq').connect('value-changed', self.lpf_cutoff_freq_changed)
-        builder.get_object('excitation_freq').connect('value-changed', self.excitation_freq_changed)
-        builder.get_object('excitation_current').connect('value-changed', self.excitation_current_changed)
+        self.excitation_freq.connect('value-changed', self.excitation_freq_changed)
+        self.excitation_current.connect('value-changed', self.excitation_current_changed)
 
         self.calibration_dialog = builder.get_object('calibration_dialog')
         self.calibration_status = builder.get_object('calibration_status')
@@ -413,6 +429,9 @@ class ColorimeterDemo():
         self.window.connect('destroy', self.destroy)
 
         builder.get_object('quit_menu_item').connect('activate', lambda w: self.window.destroy())
+
+        self.about_dialog = builder.get_object('aboutdialog')
+        builder.get_object('about_menu_item').connect('activate', self.show_about)
 
         self.led_combobox = builder.get_object('led_select')
         self.gain_combobox = {}
@@ -477,8 +496,8 @@ class ColorimeterDemo():
         self.device.select_gain(self.CHANNEL_REFERENCE, self.GAIN_33k)
         self.device.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
         self.device.set_lpf_cutoff_frequency(50)
-        self.device.set_excitation_frequency(500)
-        self.device.set_excitation_current(20)
+        self.select_excitation_frequency(1020)
+        self.select_excitation_current(10)
 
         self.window.show()
 
@@ -487,6 +506,10 @@ class ColorimeterDemo():
         self.analyse_abort()
         self.plot_stop()
         Gtk.main_quit()
+
+    def show_about(self, widget):
+        self.about_dialog.run()
+        self.about_dialog.hide()
 
     def sample_library_remove_button_clicked(self, widget):
         selection = self.library_view.get_selection()
@@ -536,7 +559,7 @@ class ColorimeterDemo():
             self.sample_library_store_refresh()
 
     def match_sample_clicked(self, widget):
-        match = self.sample_library.match(self.current_sample)    
+        match = self.sample_library.match(self.current_sample)
         if match:
             mse = 0
             mape = 0
@@ -612,7 +635,7 @@ class ColorimeterDemo():
             }
         }
         return calib_data
-    
+
     def export_calibration_data(self, filename, calib_data):
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename), 0755)
@@ -687,10 +710,18 @@ class ColorimeterDemo():
         self.device.set_lpf_cutoff_frequency(adjustment.get_value())
 
     def excitation_current_changed(self, adjustment):
-        self.device.set_excitation_current(adjustment.get_value())
+        self.select_excitation_current(adjustment.get_value())
 
     def excitation_freq_changed(self, adjustment):
-        self.device.set_excitation_frequency(adjustment.get_value())
+        self.select_excitation_frequency(adjustment.get_value())
+
+    def select_excitation_frequency(self, freq):
+        self.device.set_excitation_frequency(freq)
+        self.excitation_freq.set_value(self.device.get_excitation_frequency())
+
+    def select_excitation_current(self, current):
+        self.device.set_excitation_current(current)
+        self.excitation_current.set_value(self.device.get_excitation_current())
 
     def select_led(self, led, update_combobox = True):
         if self.led == led:
@@ -708,16 +739,16 @@ class ColorimeterDemo():
         if update_combobox:
             GObject.idle_add(self.gain_combobox[ch].set_active, gain)
 
-    def convert_voltage_to_ampere(self, channel, voltage):
+    def convert_raw_to_ampere(self, channel, raw):
         if self.gain[channel] == self.GAIN_33k:
             r = 33000.0
         else:
             r = 1000000.0
-        voltage -= self.calib_data['offset'][channel][self.gain[channel]]
-        if voltage < 0:
-            voltage = 0
+        raw -= self.calib_data['offset'][channel][self.gain[channel]]
+        if raw < 0:
+            raw = 0
 
-        return voltage  / r
+        return (raw * 2.5 / 2**26 * math.pi / 4 / r) * 10**6
 
     def calibrate_button_clicked(self, widget):
         if not widget.get_active():
@@ -762,6 +793,8 @@ class ColorimeterDemo():
             'offset': {self.CHANNEL_REFERENCE: {}, self.CHANNEL_SAMPLE: {}},
             'gain': {}
         }
+        self.select_excitation_frequency(1020)
+        self.select_excitation_current(16)
 
         for gain in (self.GAIN_33k, self.GAIN_1M):
             GObject.idle_add(self.update_calibration_status,
@@ -769,10 +802,12 @@ class ColorimeterDemo():
             self.select_gain(self.CHANNEL_REFERENCE, gain)
             self.select_gain(self.CHANNEL_SAMPLE, gain)
             time.sleep(0.2)
-            ch_ref, ch_sample = self.device.read_sample(1)
+            ch_ref, ch_sample = self.device.read_sample(10)
             calib_data['offset'][self.CHANNEL_REFERENCE][gain] = ch_ref
             calib_data['offset'][self.CHANNEL_SAMPLE][gain] = ch_sample
 
+        self.select_gain(self.CHANNEL_REFERENCE, self.GAIN_33k)
+        self.select_gain(self.CHANNEL_SAMPLE, self.GAIN_33k)
         for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
             self.select_led(led)
             for i in range(0, 10):
@@ -784,7 +819,7 @@ class ColorimeterDemo():
             GObject.idle_add(self.update_calibration_status,
                 'Calibrating %s LED Gain' % (self.TEXT_LED[led]))
 
-            ch_ref, ch_sample = self.device.read_sample(5)
+            ch_ref, ch_sample = self.device.read_sample(10)
 
             k = float(ch_sample) / float(ch_ref)
             calib_data['gain'][led] = k
@@ -843,7 +878,7 @@ class ColorimeterDemo():
         self.analyse_status.set_fraction(0)
         self.select_led(self.LED_NONE)
         self.analyse_button.set_active(False)
-        
+
     def analyse_done(self, result):
         self.update_analyse_status('Done')
         self.analyse_run = False
@@ -951,8 +986,8 @@ class ColorimeterDemo():
     def capture_samples(self):
         while self.acquire_data:
             sample = self.device.read_sample(100)
-            ch_ref = self.convert_voltage_to_ampere(self.CHANNEL_REFERENCE, sample[0])
-            ch_sample = self.convert_voltage_to_ampere(self.CHANNEL_SAMPLE, sample[1])
+            ch_ref = self.convert_raw_to_ampere(self.CHANNEL_REFERENCE, sample[0])
+            ch_sample = self.convert_raw_to_ampere(self.CHANNEL_SAMPLE, sample[1])
             absorbance = self.calc_absorbance(ch_ref, ch_sample)
 
             self.plots[self.PLOT_REFERENCE].add_sample(ch_ref)
@@ -967,7 +1002,7 @@ class ColorimeterDemo():
         w = widget.get_allocation().width
         h = widget.get_allocation().height
         self.plots[plot].draw(cr, w, h)
- 
+
 if __name__ == '__main__':
     dummy = False
     if len(sys.argv) > 1 and sys.argv[1] == 'dummy':
