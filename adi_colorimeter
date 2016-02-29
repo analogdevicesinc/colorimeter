@@ -929,7 +929,7 @@ class ColorimeterDemo():
                 time.sleep(self.WARMUP_TIME / 10.0)
 
             GObject.idle_add(self.update_analyse_status,
-                'acquire data for %s LED' % (self.TEXT_LED[led]))
+                'Acquire data for %s LED' % (self.TEXT_LED[led]))
             ch_ref, ch_sample = self.device.read_sample(5)
 
             absorbance[led] = self.calc_absorbance(ch_ref, ch_sample, True)
