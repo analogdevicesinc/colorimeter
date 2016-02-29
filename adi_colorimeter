@@ -779,6 +779,7 @@ class ColorimeterDemo():
 
     def calibration_done(self, calib_data):
         self.set_calibration_dialog_data(calib_data)
+        self.calibration_run = False
 
     def update_calibration_status(self, text):
         self.calibration_status.set_text(text)
