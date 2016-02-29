@@ -837,9 +837,12 @@ class ColorimeterDemo():
         if self.led == self.LED_NONE:
             return 0.0
 
-        if ch_ref == 0:
+        ch_ref -= self.calib_data['offset'][self.CHANNEL_REFERENCE][self.gain[self.CHANNEL_REFERENCE]]
+        ch_sample -= self.calib_data['offset'][self.CHANNEL_SAMPLE][self.gain[self.CHANNEL_SAMPLE]]
+
+        if ch_ref <= 0:
             return 0.0
-        if ch_sample == 0:
+        if ch_sample <= 0:
             return 1.0
 
         try:
@@ -1004,7 +1007,7 @@ class ColorimeterDemo():
             sample = self.device.read_sample(100)
             ch_ref = self.convert_raw_to_ampere(self.CHANNEL_REFERENCE, sample[0])
             ch_sample = self.convert_raw_to_ampere(self.CHANNEL_SAMPLE, sample[1])
-            absorbance = self.calc_absorbance(ch_ref, ch_sample)
+            absorbance = self.calc_absorbance(*sample)
 
             self.plots[self.PLOT_REFERENCE].add_sample(ch_ref)
             self.plots[self.PLOT_SAMPLE].add_sample(ch_sample)
