@@ -329,14 +329,12 @@ class ColorimeterDemo():
         self.analyse_run = False
         self.acquire_data = False
 
-        infobar = builder.get_object('infobar')
-        infobar.connect("response", lambda w, r: w.hide())
+        self.infobar = builder.get_object('infobar')
+        self.infobar.connect("response", lambda w, r: w.hide())
         try:
             self.device = Device()
         except Exception, e:
-            infobar.get_content_area().get_children()[0].set_text('Device not found: {}. Using demo device.'.format(e))
-            infobar.set_message_type(Gtk.MessageType.ERROR)
-            infobar.show()
+            self.show_info('Device not found: {}. Using demo device.'.format(e))
             print ("Device not found: %s" % str(e))
             self.device = FakeDevice()
         self.calibration_run = False
@@ -506,6 +504,12 @@ class ColorimeterDemo():
         self.analyse_abort()
         self.plot_stop()
         Gtk.main_quit()
+
+    def show_info(self, text):
+        self.infobar.hide()
+        self.infobar.get_content_area().get_children()[0].set_text(text)
+        self.infobar.set_message_type(Gtk.MessageType.ERROR)
+        self.infobar.show()
 
     def show_about(self, widget):
         self.about_dialog.run()
@@ -829,7 +833,7 @@ class ColorimeterDemo():
         self.select_led(self.LED_NONE)
         GObject.idle_add(self.calibration_done, calib_data)
 
-    def calc_absorbance(self, ch_ref, ch_sample):
+    def calc_absorbance(self, ch_ref, ch_sample, detect_channel_swap = False):
         if self.led == self.LED_NONE:
             return 0.0
 
@@ -840,6 +844,11 @@ class ColorimeterDemo():
 
         try:
             k = self.calib_data['gain'][self.led]
+			# If the sample is 10% larger than the reference assume a channel
+			# swap
+            if detect_channel_swap and ch_sample / (k * ch_ref) > 1.1:
+                return -1.0
+
             a = math.log(k * float(ch_ref) / float(ch_sample)) / math.log(10)
             return max(a, 0.0)
         except:
@@ -881,15 +890,21 @@ class ColorimeterDemo():
         self.analyse_button.set_active(False)
 
     def analyse_done(self, result):
+        channel_swap = False
         self.update_analyse_status('Done')
         self.analyse_run = False
         self.analyse_button.set_active(False)
         for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
+            if result[led] < 0:
+                channel_swap = True
+                result[led] = 0
             self.absorbance_plot[led].set_value('#1', result[led])
             self.absorbance_area[led].queue_draw()
         self.current_sample = Sample('Current', result[self.LED_RED],
             result[self.LED_GREEN], result[self.LED_BLUE])
         self.analyse_button_group.set_sensitive(True)
+        if channel_swap:
+            self.show_info('Inverted absorbance detected. Reference and sample channel swapped?')
 
     def update_analyse_status(self, text):
         self.analyse_status.set_text(text)
@@ -917,7 +932,7 @@ class ColorimeterDemo():
                 'acquire data for %s LED' % (self.TEXT_LED[led]))
             ch_ref, ch_sample = self.device.read_sample(5)
 
-            absorbance[led] = self.calc_absorbance(ch_ref, ch_sample)
+            absorbance[led] = self.calc_absorbance(ch_ref, ch_sample, True)
 
         if not self.analyse_run:
             return
