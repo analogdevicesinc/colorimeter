@@ -1564,6 +1564,7 @@
                 <property name="invisible_char">●</property>
                 <property name="xalign">1</property>
                 <property name="adjustment">reference_ch_33k_offset</property>
+                <property name="digits">3</property>
                 <property name="numeric">True</property>
               </object>
               <packing>
@@ -1579,6 +1580,7 @@
                 <property name="invisible_char">●</property>
                 <property name="xalign">1</property>
                 <property name="adjustment">reference_ch_1m_offset</property>
+                <property name="digits">3</property>
                 <property name="numeric">True</property>
               </object>
               <packing>
@@ -1594,6 +1596,7 @@
                 <property name="invisible_char">●</property>
                 <property name="xalign">1</property>
                 <property name="adjustment">sample_ch_33k_offset</property>
+                <property name="digits">3</property>
                 <property name="numeric">True</property>
               </object>
               <packing>
@@ -1609,6 +1612,7 @@
                 <property name="invisible_char">●</property>
                 <property name="xalign">1</property>
                 <property name="adjustment">sample_ch_1m_offset</property>
+                <property name="digits">3</property>
                 <property name="numeric">True</property>
               </object>
               <packing>

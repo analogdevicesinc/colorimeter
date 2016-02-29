@@ -344,12 +344,12 @@ class ColorimeterDemo():
         self.calib_data = {
             'offset': {
                 self.CHANNEL_REFERENCE: {
-                    self.GAIN_33k: 0,
-                    self.GAIN_1M: 0
+                    self.GAIN_33k: 0.0,
+                    self.GAIN_1M: 0.0
                 },
                 self.CHANNEL_SAMPLE: {
-                    self.GAIN_33k: 0,
-                    self.GAIN_1M: 0
+                    self.GAIN_33k: 0.0,
+                    self.GAIN_1M: 0.0
                 }
             },
             'gain': {
@@ -605,7 +605,7 @@ class ColorimeterDemo():
         for ch in (self.CHANNEL_REFERENCE, self.CHANNEL_SAMPLE):
             calib_data['offset'][ch] = {}
             for gain in (self.GAIN_33k, self.GAIN_1M):
-                calib_data['offset'][ch][gain] = int(self.offset_adjustment[ch][gain].get_value())
+                calib_data['offset'][ch][gain] = self.offset_adjustment[ch][gain].get_value()
         for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
             calib_data['gain'][led] = self.gain_adjustment[led].get_value()
         return calib_data
@@ -620,12 +620,12 @@ class ColorimeterDemo():
         calib_data = {
             'offset': {
                 self.CHANNEL_REFERENCE: {
-                    self.GAIN_33k: int(values[0]),
-                    self.GAIN_1M: int(values[1])
+                    self.GAIN_33k: float(values[0]),
+                    self.GAIN_1M: float(values[1])
                 },
                 self.CHANNEL_SAMPLE: {
-                    self.GAIN_33k: int(values[2]),
-                    self.GAIN_1M: int(values[3])
+                    self.GAIN_33k: float(values[2]),
+                    self.GAIN_1M: float(values[3])
                 }
             },
             'gain': {
@@ -640,7 +640,7 @@ class ColorimeterDemo():
         if not os.path.exists(os.path.dirname(filename)):
             os.makedirs(os.path.dirname(filename), 0755)
         f = open(filename, 'w')
-        f.write('%d %d %d %d %f %f %f' % (
+        f.write('%f %f %f %f %f %f %f' % (
             calib_data['offset'][self.CHANNEL_REFERENCE][self.GAIN_33k],
             calib_data['offset'][self.CHANNEL_REFERENCE][self.GAIN_1M],
             calib_data['offset'][self.CHANNEL_SAMPLE][self.GAIN_33k],
