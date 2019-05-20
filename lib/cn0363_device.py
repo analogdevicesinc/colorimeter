@@ -126,7 +126,7 @@ class Device(object):
 
         self.device = None
         self.zynq_gpio = GPIOController.get_by_name('zynq_gpio')
-        self.ad7175_gpio = GPIOController.get_by_name('spi32766.0')
+        self.ad7175_gpio = GPIOController.get_by_name('spi0.0')
         self.rdac = None
         for spi in os.listdir(SPI_DIR):
             if not os.path.isdir(os.path.join(SPI_DIR, spi)):
