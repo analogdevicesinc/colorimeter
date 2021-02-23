@@ -1,5 +1,5 @@
 [Desktop Entry]
-Exec=gksudo -u root @PREFIX@/bin/adi_colorimeter
+Exec=pkexec -u root @PREFIX@/bin/adi_colorimeter
 Icon=adi-colorimeter
 Terminal=false
 Type=Application
