@@ -78,7 +78,7 @@ class SampleLibrary(object):
         self.location = location
         self.samples = []
         if not os.path.exists(os.path.dirname(location)):
-            os.makedirs(os.path.dirname(location), 0755)
+            os.makedirs(os.path.dirname(location), 0o755)
         else:
             for f in os.listdir(location):
                 f = os.path.join(location, f)
@@ -86,7 +86,7 @@ class SampleLibrary(object):
                     continue
                 try:
                     self.samples.append(Sample.load(f))
-                except Exception, e:
+                except Exception as e:
                     print(e)
 
     def __iter__(self):

@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python3
 # -*- coding: iso-8859-15 -*-
 #
 # Copyright (C) 2014 Analog Devices, Inc.
@@ -34,6 +34,8 @@
 # STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 # THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import gi
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk, GObject, Gio, Gdk
 import threading
 import time
@@ -333,7 +335,7 @@ class ColorimeterDemo():
         self.infobar.connect("response", lambda w, r: w.hide())
         try:
             self.device = Device()
-        except Exception, e:
+        except Exception as e:
             self.show_info('Device not found: {}. Using demo device.'.format(e))
             print ("Device not found: %s" % str(e))
             self.device = FakeDevice()
@@ -361,7 +363,7 @@ class ColorimeterDemo():
 
         try:
             self.calib_data = self.import_calibration_data(os.path.expanduser('~/.colorimeter/calib_data'))
-        except Exception, e:
+        except Exception as e:
             print(e)
 
         if not dummy:
@@ -642,7 +644,7 @@ class ColorimeterDemo():
 
     def export_calibration_data(self, filename, calib_data):
         if not os.path.exists(os.path.dirname(filename)):
-            os.makedirs(os.path.dirname(filename), 0755)
+            os.makedirs(os.path.dirname(filename), 0o755)
         f = open(filename, 'w')
         f.write('%f %f %f %f %f %f %f' % (
             calib_data['offset'][self.CHANNEL_REFERENCE][self.GAIN_33k],
