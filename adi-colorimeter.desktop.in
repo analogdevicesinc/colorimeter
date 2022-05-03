@@ -1,5 +1,5 @@
 [Desktop Entry]
-Exec=pkexec -u root @PREFIX@/bin/adi_colorimeter-wrapper
+Exec=pkexec -u root @PREFIX@/bin/adi_colorimeter
 Icon=adi-colorimeter
 Terminal=false
 Type=Application
