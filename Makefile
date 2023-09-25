@@ -24,7 +24,7 @@ install: all
 	install ./adi_colorimeter $(DESTDIR)$(PREFIX)/bin/
 	install ./capture.so $(DESTDIR)$(PREFIX)/lib/adi_colorimeter/
 	install ./adi_colorimeter.glade $(DESTDIR)$(PREFIX)/share/adi_colorimeter/
-	./setup.py install --prefix=$(PREFIX) --root=$(DESTDIR)
+	pip -m install ./setup.py --prefix=$(PREFIX) --root=$(DESTDIR)
 
 	xdg-icon-resource install --noupdate --size 16 ./icons/adi-colorimeter16.png adi-colorimeter
 	xdg-icon-resource install --noupdate --size 32 ./icons/adi-colorimeter32.png adi-colorimeter
