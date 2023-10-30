@@ -45,6 +45,7 @@ import sys
 import subprocess
 import math
 import random
+from functools import reduce
 
 from adi_colorimeter.config import PREFIX
 from adi_colorimeter.fake_device import FakeDevice
@@ -1028,6 +1029,5 @@ if __name__ == '__main__':
     dummy = False
     if len(sys.argv) > 1 and sys.argv[1] == 'dummy':
         dummy = True
-    GObject.threads_init()
     ColorimeterDemo(dummy)
     Gtk.main()
