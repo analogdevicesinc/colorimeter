@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Copyright (C) 2015 Analog Devices, Inc.
 # Author: Paul Cercueil <paul.cercueil@analog.com>
@@ -13,7 +13,7 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
 # Lesser General Public License for more details.
 
-from distutils.core import setup
+from setuptools import setup
 
 setup(name='adi_colorimeter',
 		version='1.0',
