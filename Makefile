@@ -20,10 +20,12 @@ install: all
 	install -d $(DESTDIR)$(PREFIX)/bin
 	install -d $(DESTDIR)$(PREFIX)/share/adi_colorimeter/
 	install -d $(DESTDIR)$(PREFIX)/lib/adi_colorimeter/
+	install -d $(PREFIX)/share/adi_colorimeter/icons/
 	install ./org.adi.pkexec.adi_colorimeter.policy /usr/share/polkit-1/actions 
 	install ./adi_colorimeter $(DESTDIR)$(PREFIX)/bin/
 	install ./capture.so $(DESTDIR)$(PREFIX)/lib/adi_colorimeter/
 	install ./adi_colorimeter.glade $(DESTDIR)$(PREFIX)/share/adi_colorimeter/
+	install ./icons/ADIlogo.png $(PREFIX)/share/adi_colorimeter/icons/
 	./setup.py install --prefix=$(PREFIX) --root=$(DESTDIR)
 
 	xdg-icon-resource install --noupdate --size 16 ./icons/adi-colorimeter16.png adi-colorimeter
