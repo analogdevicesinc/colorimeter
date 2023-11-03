@@ -513,7 +513,7 @@
                         <property name="margin_top">20</property>
                         <property name="margin_bottom">20</property>
                         <property name="xalign">0</property>
-                        <property name="pixbuf">/usr/local/share/osc/icons/ADIlogo.png</property>
+                        <property name="pixbuf">icons/ADIlogo.png</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -926,7 +926,7 @@
                         <property name="margin_top">20</property>
                         <property name="margin_bottom">20</property>
                         <property name="xalign">0</property>
-                        <property name="pixbuf">/usr/local/share/osc/ADIlogo.png</property>
+                        <property name="pixbuf">icons/ADIlogo.png</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
@@ -1231,7 +1231,7 @@
                         <property name="margin_top">20</property>
                         <property name="margin_bottom">20</property>
                         <property name="xalign">0</property>
-                        <property name="pixbuf">/usr/local/share/osc/icons/ADIlogo.png</property>
+                        <property name="pixbuf">icons/ADIlogo.png</property>
                       </object>
                       <packing>
                         <property name="expand">False</property>
