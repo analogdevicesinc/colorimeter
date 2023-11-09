@@ -21,6 +21,7 @@ install: all
 	install -d $(PREFIX)/lib/adi_colorimeter/
 	install -d $(PREFIX)/share/adi_colorimeter/icons/
 	install ./org.adi.pkexec.adi_colorimeter.policy /usr/share/polkit-1/actions/
+
 	install ./adi_colorimeter $(PREFIX)/bin/
 	install ./capture.so $(PREFIX)/lib/adi_colorimeter/
 	install ./adi_colorimeter.glade $(PREFIX)/share/adi_colorimeter/
