@@ -1,0 +1,54 @@
+trigger:
+- main
+
+pr:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+resources:
+  containers:
+  - container: debian12
+    image: debian:12
+    options: '--name colorimeter_container -v /usr/bin/docker:/tmp/docker:ro'
+  - container: ubuntu_22_04
+    image: ubuntu:22.04
+    options: '--name colorimeter_container -v /usr/bin/docker:/tmp/docker:ro'
+
+strategy:
+  matrix:
+    debian12:
+      buildContainer: debian12
+    ubuntu_22_04:
+      buildContainer: ubuntu_22_04
+
+container: $[ variables ['buildContainer'] ]
+
+steps:
+  - checkout: self
+    fetchDepth: "1"
+    clean: "true"
+  # Enable sudo inside containers 
+  - script: |
+      /tmp/docker exec -t -u root colorimeter_container mv /etc/sudoers /etc/sudoers.bak
+      /tmp/docker exec -t -u root colorimeter_container apt-get -qq update
+      /tmp/docker exec -t -u root colorimeter_container apt-get -qq install sudo
+      /tmp/docker exec -t -u root colorimeter_container mv /etc/sudoers.bak /etc/sudoers
+    displayName: 'Enable sudo'
+  - script: chmod +x CI/install_libiio.sh && ./CI/install_libiio.sh
+    displayName: 'Install libiio'
+  - script: |
+      sudo mkdir /usr/share/desktop-directories/
+      sudo apt install -y $(cat requirements.txt)
+      make
+      sudo make install > install_output
+    displayName: 'Install colorimeter'
+  - script: sudo pip3 install .
+    condition: eq(variables['buildContainer'], 'ubuntu_22_04')
+    displayName: 'Pip install ubuntu_22_04'
+  - script: sudo pip3 install . --break-system-packages
+    condition: eq(variables['buildContainer'], 'debian12')
+    displayName: 'Pip install debian12'
+  - script: chmod +x CI/verify_install.sh && ./CI/verify_install.sh install_output
+    displayName: 'Verify install'
