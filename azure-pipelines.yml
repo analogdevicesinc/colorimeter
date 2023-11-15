@@ -1,0 +1,49 @@
+trigger:
+- main
+- add-ci
+
+pr:
+- main
+
+pool:
+  vmImage: ubuntu-latest
+
+resources:
+  containers:
+  - container: debian12
+    image: debian:12
+    options: '--name container -v /usr/bin/docker:/tmp/docker:ro'
+  - container: ubuntu_22_04
+    image: ubuntu:22.04
+    options: '--name container -v /usr/bin/docker:/tmp/docker:ro'
+
+strategy:
+  matrix:
+    debian12:
+      buildContainer: debian12
+    ubuntu_22_04:
+      buildContainer: ubuntu_22_04
+
+container: $[ variables ['buildContainer'] ]
+
+steps:
+  - checkout: self
+    fetchDepth: "1"
+    clean: "true"
+  # Enable sudo inside containers 
+  - script: |
+      /tmp/docker exec -t -u root container mv /etc/sudoers /etc/sudoers.bak
+      /tmp/docker exec -t -u root container apt-get -qq update
+      /tmp/docker exec -t -u root container apt-get -qq install sudo
+      /tmp/docker exec -t -u root container mv /etc/sudoers.bak /etc/sudoers
+    displayName: 'Enable sudo'
+  - script: chmod +x CI/install_libiio.sh && ./CI/install_libiio.sh
+    displayName: 'Install libiio'
+  - script: |
+      sudo mkdir /usr/share/desktop-directories/
+      sudo apt install -y $(cat requirements.txt)
+      make
+      sudo make install > install_output
+    displayName: 'Install colorimeter'
+  - script: chmod +x CI/verify_install.sh && ./CI/verify_install.sh install_output
+    displayName: 'Verify install'
