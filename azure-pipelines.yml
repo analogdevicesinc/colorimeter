@@ -46,10 +46,10 @@ steps:
       sudo make install > install_output
     displayName: 'Install colorimeter'
   - script: sudo pip3 install .
-    condition: eq(variables['containers.container'], 'ubuntu_22_04')
+    condition: eq(variables['containers.buildContainer'], 'ubuntu_22_04')
     displayName: 'Pip install ubuntu_22_04'
   - script: sudo pip3 install . --break-system-packages
-    condition: eq(variables['containers.container'], 'debian12')
+    condition: eq(variables['containers.buildContainer'], 'debian12')
     displayName: 'Pip install debian12'
   - script: chmod +x CI/verify_install.sh && ./CI/verify_install.sh install_output
     displayName: 'Verify install'
