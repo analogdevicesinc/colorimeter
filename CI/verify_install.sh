@@ -18,4 +18,10 @@ for f in "${files[@]}"; do
     fi
 done
 
+check_pip=$(pip freeze | grep adi_colorimeter)
+if [ -z "$check_pip" ]; then
+    echo "pip package install failed"
+    exit 1
+fi
+
 echo "colorimeter installed successfully."

@@ -44,6 +44,7 @@ steps:
       sudo apt install -y $(cat requirements.txt)
       make
       sudo make install > install_output
+      sudo python3 -m pip install .
     displayName: 'Install colorimeter'
   - script: chmod +x CI/verify_install.sh && ./CI/verify_install.sh install_output
     displayName: 'Verify install'
