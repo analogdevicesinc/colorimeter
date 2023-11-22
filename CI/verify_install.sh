@@ -18,7 +18,6 @@ for f in "${files[@]}"; do
     fi
 done
 
-pip show adi_colorimeter | grep -i warning
 check_pip=$(pip show adi_colorimeter | grep -i warning)
 if [ "$check_pip" ]; then
     echo "pip package install failed"
