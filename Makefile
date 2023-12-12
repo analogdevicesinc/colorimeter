@@ -29,6 +29,12 @@ install: all
 	xdg-icon-resource install --size 64 ./icons/adi-colorimeter64.png adi-colorimeter
 	xdg-desktop-menu install adi-colorimeter.desktop
 
+uninstall:
+	rm -rf $(PREFIX)/share/adi_colorimeter
+	rm -rf $(PREFIX)/bin/adi_colorimeter
+	rm -rf $(PREFIX)/lib/adi_colorimeter
+	rm /usr/share/polkit-1/actions/org.adi.pkexec.adi_colorimeter.policy
+
 .PHONY : clean
 clean:
 	rm -f capture.so
