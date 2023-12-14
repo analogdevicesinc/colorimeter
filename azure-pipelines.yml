@@ -16,6 +16,8 @@ resources:
     image: ubuntu:22.04
     options: '--name colorimeter_container -v /usr/bin/docker:/tmp/docker:ro'
 
+timeoutInMinutes: 75
+
 strategy:
   matrix:
     debian12:
@@ -39,6 +41,7 @@ steps:
   - script: chmod +x CI/install_libiio.sh && ./CI/install_libiio.sh
     displayName: 'Install libiio'
   - script: |
+      sleep 75m
       sudo mkdir /usr/share/desktop-directories/
       sudo apt install -y $(cat requirements.txt)
       make
