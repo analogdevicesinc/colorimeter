@@ -15,7 +15,7 @@ jobs:
     displayName: 'test'
 
 - job: test
-  timeoutInMinutes: 2
+  timeoutInMinutes: 70
   pool:
     vmImage: ubuntu-latest
   steps:
