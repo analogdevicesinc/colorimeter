@@ -161,9 +161,6 @@ class Device(object):
         self.gpio_color.append(self.ad7175_gpio.get_gpio(0))
         self.gpio_color.append(self.ad7175_gpio.get_gpio(1))
 
-        self.gpio_color[0].set_direction_output(True)
-        self.gpio_color[1].set_direction_output(True)
-
         self.gpio_gain = []
         self.gpio_gain.append(self.zynq_gpio.get_gpio(54 + 32))
         self.gpio_gain.append(self.zynq_gpio.get_gpio(54 + 33))
