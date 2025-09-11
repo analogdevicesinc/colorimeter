@@ -3,7 +3,6 @@ name: Build and Deploy Colorimeter
 env:
   APP_NAME: colorimeter
   
-
 on:
   workflow_dispatch:
   push:
@@ -22,30 +21,54 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       app-version: ${{ steps.set_version.outputs.version }}
+      can-create-release: ${{ steps.set_version.outputs.can_create_release}}
     steps:
     - name: Checkout code repository
       uses: actions/checkout@v4
-    - name: Get version
+    - name: Set app version
       id: set_version
       run: |
-        app_version=""
-        if [[ "${{github.ref_type}}" == "tag" ]]; then
-            app_version=${{github.ref_name}}
-        else
-          latest_tag=$(curl "https://api.github.com/repos/${{github.repository}}/releases/latest" | jq -r .tag_name)
-          app_version=$latest_tag+${{ github.sha }}
-        fi
-        echo "Version to check: "$app_version
-        regex='(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?$'
         # Regex to match semantic versioning (from semver.org)
-        if [[ $app_version =~ $regex ]]; then 
-          echo "Version to use: ${BASH_REMATCH[0]}"
-          echo "version=${BASH_REMATCH[0]}" >> "$GITHUB_OUTPUT"
-        else
-          echo "Invalid tag format, will be used 0.0.1+${{ github.sha }}"
-          echo "version=0.0.1+${{ github.sha }}" >> "$GITHUB_OUTPUT"
-        fi
+        # Regex will match valid version number https://regex101.com/r/jPSdnV/1
+        regex='^(v|)((0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.((0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)))*))?(\+([0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*))?)$'
+        app_version=""
+        create_release=false
+        latest_released_tag=$(curl "https://api.github.com/repos/${{github.repository}}/releases/latest" | jq -r .tag_name)
 
+        if [[ "${{github.ref_type}}" == "tag" ]]; then
+            pushed_tag=${{github.ref_name}}
+            if [[ $pushed_tag =~ $regex  ]]; then
+                app_version=${BASH_REMATCH[2]}
+                if [[ $latest_released_tag =~ $regex  ]]; then
+                    IFS='.' read -r major minor patch <<< "${BASH_REMATCH[2]}"
+                    next_patch="$major.$minor.$((patch + 1))"
+                    next_minor="$major.$((minor + 1)).0"
+                    next_major="$((major + 1)).0.0"
+                    if [[ "$app_version" == "$next_patch" || "$app_version" == "$next_minor" || "$app_version" == "$next_major" ]]; then
+                        create_release=true
+                    else
+                        echo "Valid tag, but invalid version incrementation, release will NOT be created"
+                    fi
+                else
+                    echo "Invalid relesed version, skip incrementation validation! Release will be created"
+                    create_release=true
+                fi
+            else
+                echo "Invalid tag format, release will NOT be created"
+                app_version=0.0.1+${{ github.sha }}
+            fi
+        else 
+            if [[ $latest_released_tag =~ $regex  ]]; then
+                app_version=${BASH_REMATCH[2]}+${{ github.sha }}
+            else
+                echo "Invalid relesed version. Setting default version"
+                app_version=0.0.1+${{ github.sha }}
+            fi
+        fi
+        
+        echo "Version to use $app_version"
+        echo "version=$app_version" >> "$GITHUB_OUTPUT"
+        echo "can_create_release=$create_release" >> "$GITHUB_OUTPUT"
   build_and_deploy_for_kuiper:
     runs-on: ubuntu-latest
     needs: identify_version
@@ -81,7 +104,6 @@ jobs:
 
     - name: Create debian package
       run: |
-        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "chmod +x .github/scripts/create_debian.sh"
         docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c ".github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}} ${{matrix.architecture}}"
 
     - name: Install application
@@ -92,7 +114,6 @@ jobs:
         
     - name: Verify install locations 
       run: |
-        docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c "chmod +x .github/scripts/verify_install.sh"
         docker exec ${{env.CONTAINER_BASE_NAME}}-${{matrix.architecture}} sh -c ".github/scripts/verify_install.sh"
         
     - name: Copy .deb from container to host
@@ -123,7 +144,6 @@ jobs:
         
     - name: Create .deb package
       run: | 
-        chmod +x .github/scripts/create_debian.sh
         .github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}} ${{env.architecture}}
 
     - name: Install application
@@ -134,7 +154,6 @@ jobs:
         
     - name: Verify install locations 
       run: |
-        chmod +x .github/scripts/verify_install.sh
         .github/scripts/verify_install.sh
         
     - name: Upload .deb artifacts to github
@@ -147,8 +166,9 @@ jobs:
     needs: 
       - build_and_deploy_for_kuiper
       - build_and_deploy_for_ubuntu
+      - identify_version
     runs-on: ubuntu-latest
-    if: github.ref_type == 'tag'
+    if: ${{needs.identify_version.outputs.can-create-release == 'true'}}
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
@@ -160,4 +180,3 @@ jobs:
         token: ${{secrets.TOKEN_GITHUB}}
         name: Release ${{github.ref_name}}
         artifacts: ${{env.APP_NAME}}_*.deb
-
