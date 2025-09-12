@@ -1,0 +1,16 @@
+Source: colorimeter
+Section: devel
+Priority: optional
+Maintainer: Engineerzone <https://ez.analog.com/sw-interface-tools>
+Build-Depends: debhelper-compat (= 13), dh-python, python3, python3-setuptools, pybuild-plugin-pyproject, libiio0
+Standards-Version: 4.5.1
+Homepage: https://github.com/analogdevicesinc/colorimeter
+Rules-Requires-Root: no
+
+Package: colorimeter
+Architecture: @ARCHITECTURE@
+Multi-Arch: foreign
+Depends: ${misc:Depends}, ${shlibs:Depends}, ${python3:Depends}, policykit-1, libiio0, python3-gi-cairo
+Description:  CN0363 Colorimeter Application
+ Documentation at 
+ https://wiki.analog.com/resources/tools-software/linux-software/colorimeter

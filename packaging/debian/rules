@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+
+export PYBUILD_SYSTEM=pyproject
+
+%:
+	dh $@ --with python3 --buildsystem=pybuild
+
+override_dh_auto_build:
+	$(MAKE) PREFIX=/usr
+	dh_auto_build
+
+override_dh_auto_install:
+	$(MAKE) install DESTDIR=$(CURDIR)/debian/colorimeter PREFIX=/usr DEB_BUILD=1
+	dh_auto_install
+
+override_dh_shlibdeps:
+	dh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info

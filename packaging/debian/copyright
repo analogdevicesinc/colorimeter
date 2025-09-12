@@ -1,0 +1,12 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: colorimeter
+Upstream-Contact: Engineerzone <https://ez.analog.com/sw-interface-tools>
+Source: https://github.com/analogdevicesinc/colorimeter
+#
+# Please double check copyright with the licensecheck(1) command.
+
+Files:     *
+Copyright: 2014-2018 Analog Devices, Inc.
+License:   ADIBSD
+ This software is licensed under the terms described in
+ /usr/share/doc/adi_colorimeter/LICENSE.txt
