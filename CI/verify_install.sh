@@ -18,9 +18,9 @@ for f in "${files[@]}"; do
     fi
 done
 
-check_pip=$(pip show adi_colorimeter | grep -i warning)
+check_pip=$(pip show colorimeter | grep -i warning)
 if [ "$check_pip" ]; then
-    echo "Pip package adi_colorimeter install failed!"
+    echo "Pip package colorimeter install failed!"
     exit 1
 fi
 

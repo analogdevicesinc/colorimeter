@@ -15,10 +15,10 @@
 
 from setuptools import setup
 
-setup(name='adi_colorimeter',
+setup(name='colorimeter',
 		version='1.0',
 		description='ADI CN0363 Colorimeter',
 		url='http://wiki.analog.com/resources/tools-software/linux-software/colorimeter',
-		package_dir={'adi_colorimeter': 'lib'},
-		packages=['adi_colorimeter'],
+		package_dir={'colorimeter': 'lib'},
+		packages=['colorimeter'],
 		)
