@@ -47,13 +47,13 @@ import math
 import random
 from functools import reduce
 
-from adi_colorimeter.config import PREFIX
-from adi_colorimeter.fake_device import FakeDevice
+from colorimeter.config import PREFIX
+from colorimeter.fake_device import FakeDevice
 try:
-    from adi_colorimeter.cn0363_device import Device
+    from colorimeter.cn0363_device import Device
 except:
     pass
-from adi_colorimeter.sample_library import Sample, SampleLibrary
+from colorimeter.sample_library import Sample, SampleLibrary
 
 class AbsorbancePlot(object):
 
@@ -318,10 +318,10 @@ class ColorimeterDemo():
 
     def __init__(self, dummy = False):
         builder = Gtk.Builder()
-        if os.path.exists('adi_colorimeter.glade'):
-            builder.add_from_file('adi_colorimeter.glade')
+        if os.path.exists('colorimeter.glade'):
+            builder.add_from_file('colorimeter.glade')
         else:
-            builder.add_from_file(os.path.join(PREFIX, 'share/adi_colorimeter/adi_colorimeter.glade'))
+            builder.add_from_file(os.path.join(PREFIX, 'share/colorimeter/colorimeter.glade'))
 
         self.dummy = True
         self.dummy_dir = 1

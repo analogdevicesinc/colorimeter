@@ -39,12 +39,12 @@ import time
 import math
 import os
 
-from adi_colorimeter.config import PREFIX
+from colorimeter.config import PREFIX
 
 from ctypes import POINTER, Structure, cdll, c_uint, c_int, \
         c_void_p, c_double, byref
 
-capture_lib = cdll.LoadLibrary(os.path.join(PREFIX, 'lib/adi_colorimeter/capture.so'))
+capture_lib = cdll.LoadLibrary(os.path.join(PREFIX, 'lib/colorimeter/capture.so'))
 fast_capture = capture_lib.capture_data
 fast_capture.restype = c_int
 fast_capture.archtypes = (c_void_p, c_uint, c_uint, c_double, c_double)

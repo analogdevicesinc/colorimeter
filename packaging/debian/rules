@@ -12,3 +12,6 @@ override_dh_auto_build:
 override_dh_auto_install:
 	$(MAKE) install DESTDIR=$(CURDIR)/debian/colorimeter PREFIX=/usr DEB_BUILD=1
 	dh_auto_install
+
+override_dh_python3:
+	dh_python3 --no-ext-rename

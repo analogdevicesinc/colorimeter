@@ -3,7 +3,7 @@ DESTDIR ?=
 DEB_BUILD ?=0# default: manual install mode
 
 .PHONY : all
-all: capture.so adi-colorimeter.desktop lib/config.py org.adi.pkexec.adi_colorimeter.policy
+all: capture.so colorimeter.desktop lib/config.py org.colorimeter.pkexec.policy
 
 capture.so: capture.c
 	$(CC) -shared -o $@ $^ -liio -lm -Wall -Wextra -fPIC -std=gnu99 -pedantic -O3
@@ -19,55 +19,55 @@ capture.so: capture.c
 
 install: all
 	install -d $(DESTDIR)$(PREFIX)/bin
-	install -d $(DESTDIR)$(PREFIX)/share/adi_colorimeter/
-	install -d $(DESTDIR)$(PREFIX)/lib/adi_colorimeter/
+	install -d $(DESTDIR)$(PREFIX)/share/colorimeter/
+	install -d $(DESTDIR)$(PREFIX)/lib/colorimeter/
 	install -d $(DESTDIR)/usr/share/polkit-1/actions/
-	install ./org.adi.pkexec.adi_colorimeter.policy $(DESTDIR)/usr/share/polkit-1/actions/
-	install ./adi_colorimeter $(DESTDIR)$(PREFIX)/bin/
-	install ./capture.so $(DESTDIR)$(PREFIX)/lib/adi_colorimeter/
-	install ./adi_colorimeter.glade $(DESTDIR)$(PREFIX)/share/adi_colorimeter/
+	install ./org.colorimeter.pkexec.policy $(DESTDIR)/usr/share/polkit-1/actions/
+	install ./colorimeter $(DESTDIR)$(PREFIX)/bin/
+	install ./capture.so $(DESTDIR)$(PREFIX)/lib/colorimeter/
+	install ./colorimeter.glade $(DESTDIR)$(PREFIX)/share/colorimeter/
 ifeq ($(DEB_BUILD),0)
-	xdg-icon-resource install --noupdate --size 16 ./icons/adi-colorimeter16.png adi-colorimeter
-	xdg-icon-resource install --noupdate --size 32 ./icons/adi-colorimeter32.png adi-colorimeter
-	xdg-icon-resource install --size 64 ./icons/adi-colorimeter64.png adi-colorimeter
-	xdg-desktop-menu install adi-colorimeter.desktop
+	xdg-icon-resource install --noupdate --size 16 ./icons/colorimeter16.png colorimeter
+	xdg-icon-resource install --noupdate --size 32 ./icons/colorimeter32.png colorimeter
+	xdg-icon-resource install --size 64 ./icons/colorimeter64.png colorimeter
+	xdg-desktop-menu install colorimeter.desktop
 else
 	install -d $(DESTDIR)$(PREFIX)/share/applications/
-	install -m 644 ./adi-colorimeter.desktop \
+	install -m 644 ./colorimeter.desktop \
 		$(DESTDIR)/usr/share/applications/
 
 	install -d $(DESTDIR)$(PREFIX)/share/icons/hicolor/16x16/apps/
 	install -d $(DESTDIR)$(PREFIX)/share/icons/hicolor/32x32/apps/
 	install -d $(DESTDIR)$(PREFIX)/share/icons/hicolor/64x64/apps/
-	install -m 644 ./icons/adi-colorimeter16.png \
-		$(DESTDIR)$(PREFIX)/share/icons/hicolor/16x16/apps/adi-colorimeter.png
-	install -m 644 ./icons/adi-colorimeter32.png \
-		$(DESTDIR)$(PREFIX)/share/icons/hicolor/32x32/apps/adi-colorimeter.png
-	install -m 644 ./icons/adi-colorimeter64.png \
-		$(DESTDIR)$(PREFIX)/share/icons/hicolor/64x64/apps/adi-colorimeter.png
+	install -m 644 ./icons/colorimeter16.png \
+		$(DESTDIR)$(PREFIX)/share/icons/hicolor/16x16/apps/colorimeter.png
+	install -m 644 ./icons/colorimeter32.png \
+		$(DESTDIR)$(PREFIX)/share/icons/hicolor/32x32/apps/colorimeter.png
+	install -m 644 ./icons/colorimeter64.png \
+		$(DESTDIR)$(PREFIX)/share/icons/hicolor/64x64/apps/colorimeter.png
 endif
 
 uninstall:
-	rm -rf $(DESTDIR)$(PREFIX)/share/adi_colorimeter
-	rm -rf $(DESTDIR)$(PREFIX)/bin/adi_colorimeter
-	rm -rf $(DESTDIR)$(PREFIX)/lib/adi_colorimeter
-	rm -f $(DESTDIR)/usr/share/polkit-1/actions/org.adi.pkexec.adi_colorimeter.policy
+	rm -rf $(DESTDIR)$(PREFIX)/share/colorimeter
+	rm -rf $(DESTDIR)$(PREFIX)/bin/colorimeter
+	rm -rf $(DESTDIR)$(PREFIX)/lib/colorimeter
+	rm -f $(DESTDIR)/usr/share/polkit-1/actions/org.colorimeter.pkexec.policy
 ifeq ($(DEB_BUILD),0)
-	xdg-icon-resource uninstall --size 16 adi-colorimeter
-	xdg-icon-resource uninstall --size 32 adi-colorimeter
-	xdg-icon-resource uninstall --size 64 adi-colorimeter
-	xdg-desktop-menu uninstall adi-colorimeter.desktop
+	xdg-icon-resource uninstall --size 16 colorimeter
+	xdg-icon-resource uninstall --size 32 colorimeter
+	xdg-icon-resource uninstall --size 64 colorimeter
+	xdg-desktop-menu uninstall colorimeter.desktop
 else
-	rm -f $(DESTDIR)$(PREFIX)/share/applications/adi-colorimeter.desktop
-	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/16x16/apps/adi-colorimeter.png
-	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/32x32/apps/adi-colorimeter.png
-	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/64x64/apps/adi-colorimeter.png
+	rm -f $(DESTDIR)$(PREFIX)/share/applications/colorimeter.desktop
+	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/16x16/apps/colorimeter.png
+	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/32x32/apps/colorimeter.png
+	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/64x64/apps/colorimeter.png
 endif
 
 
 .PHONY : clean
 clean:
 	rm -f capture.so
-	rm -f adi-colorimeter.desktop
+	rm -f colorimeter.desktop
 	rm -f lib/config.py
-	rm -f org.adi.pkexec.adi_colorimeter.policy
+	rm -f org.colorimeter.pkexec.policy

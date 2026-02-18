@@ -1,6 +1,6 @@
 [Desktop Entry]
-Exec=pkexec -u root @PREFIX@/bin/adi_colorimeter
-Icon=adi-colorimeter
+Exec=pkexec -u root @PREFIX@/bin/colorimeter
+Icon=colorimeter
 Terminal=false
 Type=Application
 Categories=Science

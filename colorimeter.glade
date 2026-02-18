@@ -123,7 +123,7 @@
   <object class="GtkWindow" id="main_window">
     <property name="can_focus">False</property>
     <property name="title" translatable="yes">Colorimeter Demo - CN0363</property>
-    <property name="icon_name">adi-colorimeter</property>
+    <property name="icon_name">colorimeter</property>
     <child>
       <object class="GtkBox" id="box1">
         <property name="width_request">700</property>
@@ -1377,7 +1377,7 @@
     <property name="copyright" translatable="yes">(C) Analog Devices 2014-2015</property>
     <property name="website">http://wiki.analog.com/resources/tools-software/linux-software/colorimeter</property>
     <property name="website_label" translatable="yes">User Guide</property>
-    <property name="logo_icon_name">adi-colorimeter</property>
+    <property name="logo_icon_name">colorimeter</property>
     <property name="license_type">bsd</property>
     <child internal-child="vbox">
       <object class="GtkBox" id="aboutdialog-vbox1">

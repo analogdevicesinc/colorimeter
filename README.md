@@ -31,18 +31,17 @@ $ make
 cc -shared -o capture.so capture.c -liio -lm -Wall -Wextra -fPIC -std=gnu99 -pedantic -O3
 $ sudo make install
 install -d /usr/local/bin
-install -d /usr/local/share/adi_colorimeter/
-install -d /usr/local/lib/adi_colorimeter/
-install -d /usr/local/share/adi_colorimeter/icons/
-install ./org.adi.pkexec.adi_colorimeter.policy /usr/share/polkit-1/actions
-install ./adi_colorimeter /usr/local/bin/
-install ./capture.so /usr/local/lib/adi_colorimeter/
-install ./adi_colorimeter.glade /usr/local/share/adi_colorimeter/
-install ./icons/ADIlogo.png /usr/local/share/adi_colorimeter/icons/
-xdg-icon-resource install --noupdate --size 16 ./icons/adi-colorimeter16.png adi-colorimeter
-xdg-icon-resource install --noupdate --size 32 ./icons/adi-colorimeter32.png adi-colorimeter
-xdg-icon-resource install --size 64 ./icons/adi-colorimeter64.png adi-colorimeter
-xdg-desktop-menu install adi-colorimeter.desktop
+install -d /usr/local/share/colorimeter/
+install -d /usr/local/lib/colorimeter/
+install -d /usr/share/polkit-1/actions/
+install ./org.colorimeter.pkexec.policy /usr/share/polkit-1/actions/
+install ./colorimeter /usr/local/bin/
+install ./capture.so /usr/local/lib/colorimeter/
+install ./colorimeter.glade /usr/local/share/colorimeter/
+xdg-icon-resource install --noupdate --size 16 ./icons/colorimeter16.png colorimeter
+xdg-icon-resource install --noupdate --size 32 ./icons/colorimeter32.png colorimeter
+xdg-icon-resource install --size 64 ./icons/colorimeter64.png colorimeter
+xdg-desktop-menu install colorimeter.desktop
 ```
 
 ### Install package with pip
@@ -63,29 +62,29 @@ $ source env/bin/activate
 ```
 $ make clean
 rm -f capture.so
-rm -f adi-colorimeter.desktop
+rm -f colorimeter.desktop
 rm -f lib/config.py
-rm -f org.adi.pkexec.adi_colorimeter.policy
+rm -f org.colorimeter.pkexec.policy
 $ sudo make uninstall
-rm -rf /usr/local/share/adi_colorimeter
-rm -rf /usr/local/bin/adi_colorimeter
-rm -rf /usr/local/lib/adi_colorimeter
-rm /usr/share/polkit-1/actions/org.adi.pkexec.adi_colorimeter.policy
+rm -rf /usr/local/share/colorimeter
+rm -rf /usr/local/bin/colorimeter
+rm -rf /usr/local/lib/colorimeter
+rm /usr/share/polkit-1/actions/org.colorimeter.pkexec.policy
 ```
 - For Ubuntu <= 22.4, Debian <=11 (<=python3.10)
 ```
-$ sudo python3 -m pip uninstall adi_colorimeter
-Found existing installation: adi-colorimeter 1.0
-Uninstalling adi-colorimeter-1.0:
+$ sudo python3 -m pip uninstall colorimeter
+Found existing installation: colorimeter 1.0
+Uninstalling colorimeter-1.0:
   Would remove:
-    /usr/local/lib/python3.10/dist-packages/adi_colorimeter-1.0.dist-info/*
-    /usr/local/lib/python3.10/dist-packages/adi_colorimeter/*
+    /usr/local/lib/python3.10/dist-packages/colorimeter-1.0.dist-info/*
+    /usr/local/lib/python3.10/dist-packages/colorimeter/*
 Proceed (Y/n)? Y
-  Successfully uninstalled adi-colorimeter-1.0
+  Successfully uninstalled colorimeter-1.0
 ```
 - For Debian 12 (>=python3.11)
 ```
 $ source env/bin/activate
-(env)$ sudo env/bin/pip uninstall adi_colorimeter
+(env)$ sudo env/bin/pip uninstall colorimeter
 (env)$ deactivate
 ```
