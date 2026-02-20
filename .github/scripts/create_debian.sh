@@ -9,14 +9,15 @@ echo "Building version: $version"
 echo "Architecture: $architecture"
 echo "Source directory: $source_code"
 
-# Install dependencies based on user (root or non-root)
+# Use sudo only if not running as root
 if [ "$(id -u)" -eq 0 ]; then
-    apt-get update
-    apt-get install -y build-essential make devscripts debhelper pybuild-plugin-pyproject python3 python3-setuptools dh-python libiio-dev
+    SUDO=""
 else
-    sudo apt-get update
-    sudo apt-get install -y build-essential make devscripts debhelper pybuild-plugin-pyproject python3 python3-setuptools dh-python libiio-dev
+    SUDO="sudo"
 fi
+
+$SUDO apt-get update
+$SUDO apt-get install -y build-essential make devscripts debhelper pybuild-plugin-pyproject python3 python3-setuptools dh-python libiio-dev
 
 # Update version and architecture in debian files
 sed -i "s/@VERSION@/$version-1/" packaging/debian/changelog
