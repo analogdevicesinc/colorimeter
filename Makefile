@@ -27,10 +27,10 @@ install: all
 	install ./capture.so $(DESTDIR)$(PREFIX)/lib/colorimeter/
 	install ./colorimeter.glade $(DESTDIR)$(PREFIX)/share/colorimeter/
 ifeq ($(DEB_BUILD),0)
-	xdg-icon-resource install --noupdate --size 16 ./icons/colorimeter16.png colorimeter
-	xdg-icon-resource install --noupdate --size 32 ./icons/colorimeter32.png colorimeter
-	xdg-icon-resource install --size 64 ./icons/colorimeter64.png colorimeter
-	xdg-desktop-menu install colorimeter.desktop
+	xdg-icon-resource install --novendor --noupdate --size 16 ./icons/colorimeter16.png colorimeter
+	xdg-icon-resource install --novendor --noupdate --size 32 ./icons/colorimeter32.png colorimeter
+	xdg-icon-resource install --novendor --size 64 ./icons/colorimeter64.png colorimeter
+	xdg-desktop-menu install --novendor colorimeter.desktop
 else
 	install -d $(DESTDIR)$(PREFIX)/share/applications/
 	install -m 644 ./colorimeter.desktop \
@@ -53,10 +53,10 @@ uninstall:
 	rm -rf $(DESTDIR)$(PREFIX)/lib/colorimeter
 	rm -f $(DESTDIR)/usr/share/polkit-1/actions/org.colorimeter.pkexec.policy
 ifeq ($(DEB_BUILD),0)
-	xdg-icon-resource uninstall --size 16 colorimeter
-	xdg-icon-resource uninstall --size 32 colorimeter
-	xdg-icon-resource uninstall --size 64 colorimeter
-	xdg-desktop-menu uninstall colorimeter.desktop
+	xdg-icon-resource uninstall --novendor --size 16 colorimeter
+	xdg-icon-resource uninstall --novendor --size 32 colorimeter
+	xdg-icon-resource uninstall --novendor --size 64 colorimeter
+	xdg-desktop-menu uninstall --novendor colorimeter.desktop
 else
 	rm -f $(DESTDIR)$(PREFIX)/share/applications/colorimeter.desktop
 	rm -f $(DESTDIR)$(PREFIX)/share/icons/hicolor/16x16/apps/colorimeter.png
