@@ -2,7 +2,6 @@
 set -e
 
 version=$1
-architecture=$(dpkg --print-architecture)
 source_code=$(basename "$PWD")
 
 echo "Building version: $version"
@@ -19,10 +18,9 @@ fi
 $SUDO apt-get update
 $SUDO apt-get install -y build-essential make devscripts debhelper pybuild-plugin-pyproject python3 python3-setuptools dh-python libiio-dev
 
-# Update version and architecture in debian files
+# Update version in debian files
 sed -i "s/@VERSION@/$version-1/" packaging/debian/changelog
 sed -i "s/@DATE@/$(date -R)/" packaging/debian/changelog
-sed -i "s/@ARCHITECTURE@/$architecture/" packaging/debian/control
 
 # Copy debian directory to source root
 cp -r packaging/debian .
