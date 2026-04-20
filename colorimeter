@@ -36,7 +36,7 @@
 
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, GObject, Gio, Gdk
+from gi.repository import Gtk, GObject, Gio, Gdk, GLib
 import threading
 import time
 import os
@@ -736,7 +736,7 @@ class ColorimeterDemo():
         self.led = led
         self.device.select_led(led)
         if update_combobox:
-            GObject.idle_add(self.led_combobox.set_active, led)
+            GLib.idle_add(self.led_combobox.set_active, led)
 
     def select_gain(self, ch, gain, update_combobox = True):
         if self.gain[ch] == gain:
