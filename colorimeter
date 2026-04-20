@@ -666,11 +666,15 @@ class ColorimeterDemo():
         f.close()
 
     def calibration_export_clicked(self):
-        dialog = Gtk.FileChooserDialog("Export Calibration Data", self.window,
-            Gtk.FileChooserAction.SAVE, (
-                "_Cancel", Gtk.ResponseType.CANCEL,
-                "_Save", Gtk.ResponseType.ACCEPT
-            ))
+        dialog = Gtk.FileChooserDialog(
+            title="Export Calibration Data",
+            parent=self.window,
+            action=Gtk.FileChooserAction.SAVE
+        )
+        dialog.add_buttons(
+            "_Cancel", Gtk.ResponseType.CANCEL,
+            "_Save", Gtk.ResponseType.ACCEPT
+        )
         resp = dialog.run()
         if resp == Gtk.ResponseType.ACCEPT:
             calib_data = self.get_calibration_dialog_data()
@@ -678,11 +682,15 @@ class ColorimeterDemo():
         dialog.destroy()
 
     def calibration_import_clicked(self):
-        dialog = Gtk.FileChooserDialog("Import Calibration Data", self.window,
-            Gtk.FileChooserAction.SAVE, (
-                "_Cancel", Gtk.ResponseType.CANCEL,
-                "_Open", Gtk.ResponseType.ACCEPT
-            ))
+        dialog = Gtk.FileChooserDialog(
+            title="Import Calibration Data",
+            parent=self.window,
+            action=Gtk.FileChooserAction.OPEN
+        )
+        dialog.add_buttons(
+            "_Cancel", Gtk.ResponseType.CANCEL,
+            "_Open", Gtk.ResponseType.ACCEPT
+        )
         resp = dialog.run()
         if resp == Gtk.ResponseType.ACCEPT:
             calib_data = self.import_calibration_data(dialog.get_filename())
