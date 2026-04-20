@@ -877,7 +877,8 @@ class ColorimeterDemo():
             return
         self.plot_stop()
         self.analyse_run = True
-        self.analyse_button_group.set_sensitive(False)
+        self.match_sample_button.set_sensitive(False)
+        self.save_sample_button.set_sensitive(False)
         for led in (self.LED_RED, self.LED_GREEN, self.LED_BLUE):
             self.absorbance_plot[led].clear()
             self.absorbance_area[led].queue_draw()
@@ -914,7 +915,8 @@ class ColorimeterDemo():
             self.absorbance_area[led].queue_draw()
         self.current_sample = Sample('Current', result[self.LED_RED],
             result[self.LED_GREEN], result[self.LED_BLUE])
-        self.analyse_button_group.set_sensitive(True)
+        self.match_sample_button.set_sensitive(True)
+        self.save_sample_button.set_sensitive(True)
         if channel_swap:
             self.show_info('Inverted absorbance detected. Reference and sample channel swapped?')
 
