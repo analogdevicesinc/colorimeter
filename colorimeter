@@ -843,6 +843,10 @@ class ColorimeterDemo():
 
             ch_ref, ch_sample = self.device.read_sample(10)
 
+            if ch_ref == 0:
+                GLib.idle_add(self.show_info, 'Calibration failed: reference channel reading is zero')
+                self.calibration_run = False
+                return
             k = float(ch_sample) / float(ch_ref)
             calib_data['gain'][led] = k
 
