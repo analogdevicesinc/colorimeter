@@ -447,7 +447,9 @@ class ColorimeterDemo():
         for k, d in self.absorbance_area.items():
             self.absorbance_plot[k] = AbsorbancePlot(self.COLORS_LED[k])
             d.connect('draw', self.draw_absorbance, self.absorbance_plot[k])
-            d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_data(b"* { background-color: transparent; }")
+            d.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.plots = {}
         self.plot_area = {}
@@ -463,7 +465,9 @@ class ColorimeterDemo():
                 unit = 'uA'
             self.plots[k] = Plot(self.COLORS_PLOT[k], label, unit, 100)
             d.connect('draw', self.draw_plot, k)
-            d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_data(b"* { background-color: transparent; }")
+            d.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.library_absorbance_area = {}
         self.library_absorbance_area[self.LED_RED] = builder.get_object('library_red_absorbance')
@@ -473,7 +477,9 @@ class ColorimeterDemo():
         for k, d in self.library_absorbance_area.items():
             self.library_absorbance_plot[k] = AbsorbancePlot(self.COLORS_LED[k])
             d.connect('draw', self.draw_absorbance, self.library_absorbance_plot[k])
-            d.override_background_color(Gtk.StateType.NORMAL, Gdk.RGBA(0, 0, 0, 0))
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_data(b"* { background-color: transparent; }")
+            d.get_style_context().add_provider(css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.library_view = builder.get_object('sample_library_view')
         self.library_store = builder.get_object('sample_library_store')
