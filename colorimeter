@@ -750,7 +750,7 @@ class ColorimeterDemo():
         self.gain[ch] = gain
         self.device.select_gain(ch, gain)
         if update_combobox:
-            GObject.idle_add(self.gain_combobox[ch].set_active, gain)
+            GLib.idle_add(self.gain_combobox[ch].set_active, gain)
 
     def convert_raw_to_ampere(self, channel, raw):
         if self.gain[channel] == self.GAIN_33k:
@@ -811,7 +811,7 @@ class ColorimeterDemo():
         self.select_excitation_current(16)
 
         for gain in (self.GAIN_33k, self.GAIN_1M):
-            GObject.idle_add(self.update_calibration_status,
+            GLib.idle_add(self.update_calibration_status,
                 'Calibrating Offset (%s)' % (self.TEXT_GAIN[gain]))
             self.select_gain(self.CHANNEL_REFERENCE, gain)
             self.select_gain(self.CHANNEL_SAMPLE, gain)
@@ -827,10 +827,10 @@ class ColorimeterDemo():
             for i in range(0, 10):
                 if not self.calibration_run:
                     return
-                GObject.idle_add(self.update_calibration_status,
+                GLib.idle_add(self.update_calibration_status,
                     'Calibrating %s LED Gain (warmup)' % (self.TEXT_LED[led]))
                 time.sleep(self.WARMUP_TIME / 10.0)
-            GObject.idle_add(self.update_calibration_status,
+            GLib.idle_add(self.update_calibration_status,
                 'Calibrating %s LED Gain' % (self.TEXT_LED[led]))
 
             ch_ref, ch_sample = self.device.read_sample(10)
@@ -838,9 +838,9 @@ class ColorimeterDemo():
             k = float(ch_sample) / float(ch_ref)
             calib_data['gain'][led] = k
 
-        GObject.idle_add(self.update_calibration_status, 'Calibration Done')
+        GLib.idle_add(self.update_calibration_status, 'Calibration Done')
         self.select_led(self.LED_NONE)
-        GObject.idle_add(self.calibration_done, calib_data)
+        GLib.idle_add(self.calibration_done, calib_data)
 
     def calc_absorbance(self, ch_ref, ch_sample, detect_channel_swap = False):
         if self.led == self.LED_NONE:
@@ -936,11 +936,11 @@ class ColorimeterDemo():
             for i in range(0, 10):
                 if not self.analyse_run:
                     return
-                GObject.idle_add(self.update_analyse_status,
+                GLib.idle_add(self.update_analyse_status,
                     'Warming up %s LED' % (self.TEXT_LED[led]))
                 time.sleep(self.WARMUP_TIME / 10.0)
 
-            GObject.idle_add(self.update_analyse_status,
+            GLib.idle_add(self.update_analyse_status,
                 'Acquire data for %s LED' % (self.TEXT_LED[led]))
             ch_ref, ch_sample = self.device.read_sample(5)
 
@@ -950,7 +950,7 @@ class ColorimeterDemo():
             return
 
         self.select_led(self.LED_NONE)
-        GObject.idle_add(self.analyse_done, absorbance)
+        GLib.idle_add(self.analyse_done, absorbance)
 
     def draw_absorbance(self, widget, cr, plot):
         a = widget.get_allocation()
@@ -1023,7 +1023,7 @@ class ColorimeterDemo():
             self.plots[self.PLOT_ABSORBANCE].add_sample(absorbance)
 
             for p in self.plot_area.values():
-                GObject.idle_add(p.queue_draw)
+                GLib.idle_add(p.queue_draw)
             time.sleep(0.1)
 
     def draw_plot(self, widget, cr, plot):
