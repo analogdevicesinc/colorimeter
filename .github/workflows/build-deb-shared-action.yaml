@@ -1,0 +1,180 @@
+name: Build Debian Packages (shared action)
+
+permissions:
+  contents: read
+
+env:
+  APP_NAME: colorimeter
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  identify_version:
+    runs-on: ubuntu-latest
+    outputs:
+      app-version: ${{ steps.set_version.outputs.version }}
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v6
+    - name: Set app version
+      id: set_version
+      run: |
+        # Extract version from setup.py (same scheme as build.yaml).
+        setup_version=$(grep -oP "version\s*=\s*['\"]\\K[0-9]+\\.[0-9]+(\\.[0-9]+)?" setup.py)
+
+        if [[ -z "$setup_version" ]]; then
+            echo "Failed to extract version from setup.py, using default"
+            setup_version="0.0.1+${{ github.sha }}"
+        fi
+
+        echo "Version to use: $setup_version"
+        echo "version=$setup_version" >> "$GITHUB_OUTPUT"
+
+  # amd64 builds natively on the host runner via the composite action.
+  build_amd64:
+    runs-on: ubuntu-latest
+    needs: identify_version
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v6
+      with:
+        path: ${{env.APP_NAME}}
+
+    # libiio-dev provides iio.h, which capture.c needs. packaging/debian/control
+    # lists only libiio0 (the runtime library), so the action's mk-build-deps
+    # never installs the headers. Install them on the host before the action.
+    - name: Install libiio development headers
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libiio-dev
+
+    - name: Create debian package
+      id: build_deb
+      uses: analogdevicesinc/shared-actions/deb-generator-action@main
+      with:
+        version: ${{needs.identify_version.outputs.app-version}}
+        working-directory: ${{env.APP_NAME}}
+        ignore-path: |
+          packaging
+
+    - name: Install application
+      run: |
+        # apt-get (not bare dpkg -i) so the runtime Depends resolve: polkitd/
+        # pkexec and python3-gi-cairo. policykit-1 does not exist on Ubuntu 24.04.
+        sudo apt-get install -y "${{steps.build_deb.outputs.artifact-dir}}"/${{env.APP_NAME}}_*_amd64.deb
+
+    - name: Verify install locations
+      working-directory: ${{env.APP_NAME}}
+      run: |
+        .github/scripts/verify_install.sh /usr
+
+    - name: Upload debian artifacts to github
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{env.APP_NAME}}-ubuntu
+        path: |
+          ${{steps.build_deb.outputs.artifact-dir}}/*.deb
+          ${{steps.build_deb.outputs.artifact-dir}}/*.dsc
+          ${{steps.build_deb.outputs.artifact-dir}}/*.debian.tar.xz
+          ${{steps.build_deb.outputs.artifact-dir}}/*.orig.tar.gz
+          ${{steps.build_deb.outputs.artifact-dir}}/*.buildinfo
+          ${{steps.build_deb.outputs.artifact-dir}}/*.changes
+        if-no-files-found: error
+
+  # arm64/armhf build inside trixie containers on the arm runner. The composite
+  # action runs on the host only, so for cross-arch we invoke its build-deb.sh
+  # directly in the container, as the action's README prescribes. armhf
+  # (linux/arm/v7) runs natively on the aarch64 runner, so no qemu is needed.
+  build_arm:
+    runs-on: ubuntu-24.04-arm
+    needs: identify_version
+    strategy:
+      fail-fast: false
+      matrix:
+        # Both distros the old build.yaml covered, on both arm arches. distro
+        # differentiates the two images per architecture (and the artifact name
+        # below). The kuiper_basic images moved from Docker Hub (aandrisa/*) to
+        # the ADI Cloudsmith container registry.
+        include:
+          - distro: kuiper
+            image: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            architecture: arm64
+            platform_flag: ""
+          - distro: debian13
+            image: arm64v8/debian:trixie
+            architecture: arm64
+            platform_flag: ""
+          - distro: kuiper
+            image: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
+          - distro: debian13
+            image: arm32v7/debian:trixie
+            architecture: armhf
+            platform_flag: "--platform linux/arm/v7"
+
+    steps:
+    - name: Checkout code repository
+      uses: actions/checkout@v6
+      with:
+        path: ${{env.APP_NAME}}
+
+    - name: Checkout shared-actions
+      uses: actions/checkout@v6
+      with:
+        repository: analogdevicesinc/shared-actions
+        path: shared-actions
+
+    - name: Start persistent container
+      run: |
+        docker run -d ${{matrix.platform_flag}} \
+            --name builder \
+            -v "$GITHUB_WORKSPACE:/work" \
+            -w /work \
+            -e GITHUB_WORKSPACE=/work \
+            ${{matrix.image}} tail -f /dev/null
+
+    - name: Install container prerequisites
+      run: |
+        # build-deb.sh curls the ADI package feed, so curl and TLS roots must
+        # exist before the script runs (the bare debian images lack them).
+        # libiio-dev provides iio.h for capture.c (control lists only libiio0,
+        # so build-deb.sh's mk-build-deps would not install the headers). Both
+        # sources ship it: debian trixie has libiio-dev 0.26, and the kuiper
+        # images resolve it too (the old create_debian.sh installed it there).
+        docker exec builder sh -c "apt-get update -qq && apt-get install -y -qq curl ca-certificates libiio-dev"
+
+    - name: Create debian package
+      run: |
+        docker exec \
+            -e VERSION="${{needs.identify_version.outputs.app-version}}" \
+            -e WORKING_DIRECTORY="/work/${{env.APP_NAME}}" \
+            -e GITHUB_WORKSPACE="/work" \
+            -e IGNORE_PATH="packaging" \
+            builder bash /work/shared-actions/deb-generator-action/build-deb.sh
+
+    - name: Install application
+      run: |
+        # Resolve runtime Depends (polkitd/pkexec, python3-gi-cairo) via apt.
+        docker exec builder sh -c "apt-get install -y /work/artifacts/${{env.APP_NAME}}_*_${{matrix.architecture}}.deb"
+
+    - name: Verify install locations
+      run: |
+        docker exec -w /work/${{env.APP_NAME}} builder bash .github/scripts/verify_install.sh /usr
+
+    - name: Upload debian artifacts to github
+      uses: actions/upload-artifact@v7
+      with:
+        name: ${{env.APP_NAME}}-${{matrix.distro}}-${{matrix.architecture}}
+        path: |
+          artifacts/*.deb
+          artifacts/*.dsc
+          artifacts/*.debian.tar.xz
+          artifacts/*.orig.tar.gz
+          artifacts/*.buildinfo
+          artifacts/*.changes
+        if-no-files-found: error
