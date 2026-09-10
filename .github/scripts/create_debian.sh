@@ -8,15 +8,10 @@ echo "Building version: $version"
 echo "Architecture: $architecture"
 echo "Source directory: $source_code"
 
-# Use sudo only if not running as root
-if [ "$(id -u)" -eq 0 ]; then
-    SUDO=""
-else
-    SUDO="sudo"
+if [[ "$STAGE" == "dev" ]]; then
+    rm -rf packaging/debian
+    mv packaging/debian_dev packaging/debian
 fi
-
-$SUDO apt-get update
-$SUDO apt-get install -y build-essential make devscripts debhelper pybuild-plugin-pyproject python3 python3-setuptools dh-python libiio-dev
 
 # Update version in debian files
 sed -i "s/@VERSION@/$version-1/" packaging/debian/changelog
