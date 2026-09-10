@@ -5,6 +5,7 @@ permissions:
 
 env:
   APP_NAME: colorimeter
+  CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
 
 on:
   workflow_dispatch:
@@ -79,6 +80,9 @@ jobs:
             --name ${{matrix.distro}}-${{matrix.architecture}} \
             -v "$GITHUB_WORKSPACE/${{env.APP_NAME}}:/workspace/${{env.APP_NAME}}" \
             -w /workspace/${{env.APP_NAME}} \
+            -e CLOUDSMITH_API_KEY=${{ env.CLOUDSMITH_API_KEY }} \
+            -e DISTRO=${{ matrix.distro }} \
+            -e ARCHITECTURE=${{ matrix.architecture }} \
             ${{matrix.docker_image}} tail -f /dev/null
 
     - name: Create debian package
@@ -113,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: identify_version
     env:
-      architecture: amd64
+      ARCHITECTURE: amd64
     defaults:
       run:
         working-directory: ${{env.APP_NAME}}
@@ -130,7 +134,7 @@ jobs:
     - name: Install application
       run: |
         sudo apt-get install -y policykit-1 python3-gi-cairo
-        sudo dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{env.architecture}}.deb
+        sudo dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{env.ARCHITECTURE}}.deb
 
     - name: Verify install locations
       run: |
