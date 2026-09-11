@@ -16,15 +16,6 @@ else
     SUDO="sudo"
 fi
 
-export DEBIAN_FRONTEND=noninteractive
-$SUDO apt-get update
-$SUDO apt-get install -y \
-    build-essential cmake make devscripts debhelper rpm \
-    pybuild-plugin-pyproject python3-setuptools dh-python \
-    libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev \
-    libserialport-dev libavahi-client-dev bison flex wget \
-    graphviz libavahi-common-dev bzip2 python3-pip
-
 # Install libbio
 wget https://raw.githubusercontent.com/analogdevicesinc/wiki-scripts/refs/heads/main/utils/cloudsmith_utils/cloudsmith_helper.py -O /tmp/cloudsmith_helper.py
 mkdir -p build && cd build
@@ -36,7 +27,7 @@ $PYTHON /tmp/cloudsmith_helper.py \
 $SUDO dpkg -i "libiio-0.26.g-$artifact_name"
 
 export CMAKE_OPTIONS="-DPYTHON_BINDINGS=ON -DENABLE_PACKAGING=ON -DDEB_DETECT_DEPENDENCIES=ON .."
-$SUDO -H $PYTHON -m pip install pylibiio --no-binary :all:
+$PYTHON -m pip install pylibiio --no-binary :all:
 
 # Update version in debian files
 sed -i "s/@VERSION@/$version-1/" packaging/debian/changelog
