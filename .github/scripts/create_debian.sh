@@ -3,6 +3,7 @@ set -e
 
 version=$1
 source_code=$(basename "$PWD")
+artifact_name=${ARTIFACT_NAME}
 
 echo "Building version: $version"
 echo "Architecture: $architecture"
@@ -15,8 +16,18 @@ else
     SUDO="sudo"
 fi
 
-$SUDO apt-get update
-$SUDO apt-get install -y build-essential make devscripts debhelper pybuild-plugin-pyproject python3 python3-setuptools dh-python libiio-dev
+# Install libbio
+wget https://raw.githubusercontent.com/analogdevicesinc/wiki-scripts/refs/heads/main/utils/cloudsmith_utils/cloudsmith_helper.py -O /tmp/cloudsmith_helper.py
+mkdir -p build && cd build
+$PYTHON /tmp/cloudsmith_helper.py \
+    --method get_artifacts_from_location \
+    --repo external \
+    --package_version "libiio-v0~latest" \
+    --package_name "$artifact_name"
+$SUDO dpkg -i "libiio-0.26.g-$artifact_name"
+
+export CMAKE_OPTIONS="-DPYTHON_BINDINGS=ON -DENABLE_PACKAGING=ON -DDEB_DETECT_DEPENDENCIES=ON .."
+$PYTHON -m pip install pylibiio --no-binary :all:
 
 # Update version in debian files
 sed -i "s/@VERSION@/$version-1/" packaging/debian/changelog

@@ -3,9 +3,6 @@ name: Build and Deploy Colorimeter
 permissions:
   contents: read
 
-env:
-  APP_NAME: colorimeter
-
 on:
   workflow_dispatch:
   push:
@@ -19,6 +16,9 @@ on:
     branches:
       - main
       - '20[1-9][0-9]_R[1-9]'
+
+env:
+  CLOUDSMITH_API_KEY: ${{ secrets.CLOUDSMITH_API_KEY }}
 
 jobs:
   identify_version:
@@ -41,114 +41,132 @@ jobs:
 
         echo "Version to use: $setup_version"
         echo "version=$setup_version" >> "$GITHUB_OUTPUT"
-
   build_arm_native:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     needs: identify_version
     strategy:
       fail-fast: false
       matrix:
         include:
-          - docker_image: aandrisa/kuiper_basic_64:latest
-            distro: kuiper
+          - image: debian:trixie
+            distro: debian13-arm64
             architecture: arm64
+            artifact-name: Debian-13-arm64.deb
             platform_flag: ""
-          - docker_image: arm64v8/debian:trixie
-            distro: debian13
-            architecture: arm64
-            platform_flag: ""
-          - docker_image: aandrisa/kuiper_basic_32:latest
-            distro: kuiper
+          - image: arm32v7/debian:trixie
+            distro: debian13-armhf
             architecture: armhf
+            artifact-name: Debian-13-armhf.deb
             platform_flag: "--platform linux/arm/v7"
-          - docker_image: arm32v7/debian:trixie
-            distro: debian13
-            architecture: armhf
-            platform_flag: "--platform linux/arm/v7"
-
+    env:
+      ARTIFACT_NAME: ${{ matrix.artifact-name }}
+    container:
+      image: ${{ matrix.docker_image }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}/colorimeter
+      options: ${{ matrix.platform_flag }} -w /workspace/colorimeter
     steps:
     - name: Checkout code repository
       uses: actions/checkout@v6
-      with:
-        path: ${{env.APP_NAME}}
-
-    - name: Start persistent container
+    - name: Install uv 
+      uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+    - name: Install py39, create venv and install dependencies 
       run: |
-        docker run -d \
-            ${{matrix.platform_flag}} \
-            --name ${{matrix.distro}}-${{matrix.architecture}} \
-            -v "$GITHUB_WORKSPACE/${{env.APP_NAME}}:/workspace/${{env.APP_NAME}}" \
-            -w /workspace/${{env.APP_NAME}} \
-            ${{matrix.docker_image}} tail -f /dev/null
-
+        set -e
+        uv python install 3.9
+        uv venv --python 3.9 /tmp/cloudsmith-venv --seed
+        uv pip install --python /tmp/cloudsmith-venv/bin/python3 requests 
+    - name: Install dependencies
+      shell: sh
+      run: |
+        DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y \
+          build-essential cmake make devscripts debhelper rpm \
+          pybuild-plugin-pyproject python3-setuptools dh-python \
+          libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev \
+          libserialport-dev libavahi-client-dev bison flex wget \
+          graphviz libavahi-common-dev bzip2 python3-pip
     - name: Create debian package
       run: |
-        docker exec ${{matrix.distro}}-${{matrix.architecture}} sh -c ".github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}"
-
+        .github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}
+      env:
+        PYTHON: /tmp/cloudsmith-venv/bin/python3
     - name: Install application
       run: |
-        docker exec ${{matrix.distro}}-${{matrix.architecture}} sh -c "(apt-get install -y policykit-1 || apt-get install -y polkitd pkexec) && apt-get install -y python3-gi-cairo && dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{matrix.architecture}}.deb"
-
+        (sudo apt-get install -y policykit-1 || sudo apt-get install -y polkitd pkexec) && \
+        sudo apt-get install -y python3-gi-cairo && \
+        dpkg -i ../colorimeter_${{needs.identify_version.outputs.app-version}}-1_${{matrix.architecture}}.deb
     - name: Verify install locations
       run: |
-        docker exec ${{matrix.distro}}-${{matrix.architecture}} sh -c ".github/scripts/verify_install.sh"
-
-    - name: Copy debian artifacts from container to host
+        .github/scripts/verify_install.sh
+      env:
+        PYTHON: /tmp/cloudsmith-venv/bin/python3
+    - name: Copy debian artifacts to path
       run: |
-        docker cp ${{matrix.distro}}-${{matrix.architecture}}:/workspace/. ./artifacts/
+        cp -r /workspace/. ./artifacts/
         ls -la ./artifacts/
-
     - name: Upload debian artifacts to github
       uses: actions/upload-artifact@v7
       with:
-        name: ${{env.APP_NAME}}-${{matrix.distro}}-${{matrix.architecture}}
+        name: colorimeter-${{matrix.distro}}-${{matrix.architecture}}
         path: |
           artifacts/*.deb
           artifacts/*.dsc
           artifacts/*.debian.tar.xz
           artifacts/*.orig.tar.gz
         if-no-files-found: error
-
   build_ubuntu:
     runs-on: ubuntu-latest
     needs: identify_version
     env:
-      architecture: amd64
+      ARCHITECTURE: amd64
+      ARTIFACT_NAME: Linux-Ubuntu-24.04.deb
     defaults:
       run:
-        working-directory: ${{env.APP_NAME}}
+        working-directory: colorimeter
     steps:
     - name: Checkout code repository
       uses: actions/checkout@v6
       with:
-        path: ${{env.APP_NAME}}
-
+        path: colorimeter
+    - name: Setup python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97   #v7.0.0
+      with:
+        python-version: '3.13'
+    - name: Install dependencies
+      shell: sh
+      run: |
+        DEBIAN_FRONTEND=noninteractive sudo apt-get update && sudo apt-get install -y \
+          build-essential cmake make devscripts debhelper rpm \
+          pybuild-plugin-pyproject python3-setuptools dh-python \
+          libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev \
+          libserialport-dev libavahi-client-dev bison flex wget \
+          graphviz libavahi-common-dev bzip2 python3-pip
     - name: Create .deb package
       run: |
         .github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}
-
+      env:
+        PYTHON: /usr/bin/python3
     - name: Install application
       run: |
         sudo apt-get install -y policykit-1 python3-gi-cairo
-        sudo dpkg -i ../${{env.APP_NAME}}_${{needs.identify_version.outputs.app-version}}-1_${{env.architecture}}.deb
-
+        sudo dpkg -i ../colorimeter_${{needs.identify_version.outputs.app-version}}-1_${{env.ARCHITECTURE}}.deb
     - name: Verify install locations
       run: |
         .github/scripts/verify_install.sh
-
+      env:
+        PYTHON: /usr/bin/python3
     - name: Copy debian artifacts
       run: |
         mkdir -p artifacts
         cp ../*.deb ../*.dsc ../*.debian.tar.xz ../*.orig.tar.gz artifacts/
         ls -la artifacts/
-
     - name: Upload debian artifacts to github
       uses: actions/upload-artifact@v7
       with:
-        name: ${{env.APP_NAME}}-ubuntu
+        name: colorimeter-ubuntu
         path: |
-          ${{env.APP_NAME}}/artifacts/*.deb
-          ${{env.APP_NAME}}/artifacts/*.dsc
-          ${{env.APP_NAME}}/artifacts/*.debian.tar.xz
-          ${{env.APP_NAME}}/artifacts/*.orig.tar.gz
+          colorimeter/artifacts/*.deb
+          colorimeter/artifacts/*.dsc
+          colorimeter/artifacts/*.debian.tar.xz
+          colorimeter/artifacts/*.orig.tar.gz
         if-no-files-found: error
