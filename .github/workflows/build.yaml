@@ -42,35 +42,29 @@ jobs:
         echo "Version to use: $setup_version"
         echo "version=$setup_version" >> "$GITHUB_OUTPUT"
   build_arm_native:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     needs: identify_version
     strategy:
       fail-fast: false
       matrix:
         include:
-          - distro: kuiper-arm64
+          - image: debian:trixie
+            distro: debian13-arm64
             architecture: arm64
             artifact-name: Debian-13-arm64.deb
             platform_flag: ""
-          - distro: debian13-arm64
-            architecture: arm64
-            artifact-name: Debian-13-arm64.deb
-            platform_flag: ""
-          - distro: kuiper-armhf
-            architecture: armhf
-            artifact-name: Debian-13-armhf.deb
-            platform_flag: "--platform linux/arm/v7"
-          - distro: debian13-armhf
+          - image: arm32v7/debian:trixie
+            distro: debian13-armhf
             architecture: armhf
             artifact-name: Debian-13-armhf.deb
             platform_flag: "--platform linux/arm/v7"
     env:
       ARTIFACT_NAME: ${{ matrix.artifact-name }}
-    # container:
-    #   image: ${{ matrix.docker_image }}
-    #   volumes:
-    #     - ${{ github.workspace }}:${{ github.workspace }}/colorimeter
-    #   options: ${{ matrix.platform_flag }} -w /workspace/colorimeter
+    container:
+      image: ${{ matrix.docker_image }}
+      volumes:
+        - ${{ github.workspace }}:${{ github.workspace }}/colorimeter
+      options: ${{ matrix.platform_flag }} -w /workspace/colorimeter
     steps:
     - name: Checkout code repository
       uses: actions/checkout@v6
@@ -90,8 +84,7 @@ jobs:
           pybuild-plugin-pyproject python3-setuptools dh-python \
           libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev \
           libserialport-dev libavahi-client-dev bison flex wget \
-          graphviz libavahi-common-dev bzip2 python3-pip \
-          libiio-utils python3-libiio
+          graphviz libavahi-common-dev bzip2 python3-pip
     - name: Create debian package
       run: |
         .github/scripts/create_debian.sh ${{needs.identify_version.outputs.app-version}}
