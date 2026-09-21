@@ -2,45 +2,74 @@
 
 set -e
 
-# Install packages based on architecture
-if [[ "$ARCHITECTURE" == "arm64" || "$ARCHITECTURE" == "armhf" ]]; then
-    SUDO=""
+# Manual docker run for amrhf architecture
+if [[ "$ARCHITECTURE" == "armhf" ]]; then
+    # Start container
+    docker run --platform ${PLATFORM} \
+        --name debian13-armhf \
+        -v "${GITHUB_WORKSPACE}:/workspace/colorimeter" \
+        -e ARTIFACT_NAME="Debian-13-armhf.deb" \
+        -e CLOUDSMITH_API_KEY="$CLOUDSMITH_API_KEY" \
+        -dit ${CONTAINER}
+    
+    # Install deps
+    docker exec \
+        debian13-armhf \
+        /bin/bash -c "
+            set -e
+            cd /workspace/colorimeter
+            apt-get update && apt-get install -y \
+            rpm pybuild-plugin-pyproject dh-python \
+            libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev libserialport-dev \
+            libavahi-client-dev bison flex wget graphviz libavahi-common-dev bzip2 curl
+            (apt-get install -y policykit-1 || apt-get install -y polkitd pkexec) && \
+            apt-get install python3-gi-cairo
+        "
+
+    # Install libiio
+    if [[ "$STAGE" == "dev" ]]; then
+        docker exec \
+            -e ARTIFACT_NAME="${ARTIFACT_NAME}" \
+            debian13-armhf \
+            /bin/bash -c "
+                wget https://packages.analog.com/public/raw/versions/libiio-v0~latest/libiio-0.26.g-${ARTIFACT_NAME}
+                dpkg -i *.deb
+                ldconfig
+                apt-get install -y python3-libiio
+            "
+    else
+        docker exec \
+            debian13-armhf \
+            /bin/bash -c "
+                apt-get install -y libiio-dev
+                ldconfig
+                apt-get install -y python3-libiio
+            "
+    fi
 else
-    SUDO="sudo"
-fi
-${SUDO} apt-get update
+    [[ "$ARCHITECTURE" == "arm64" ]] && SUDO="" || SUDO="sudo"
+    
+    ${SUDO} apt-get update
+    DEBIAN_FRONTEND=noninteractive ${SUDO} apt-get install -y \
+            rpm pybuild-plugin-pyproject dh-python \
+            libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev libserialport-dev \
+            libavahi-client-dev bison flex wget graphviz libavahi-common-dev bzip2 curl
 
-DEBIAN_FRONTEND=noninteractive ${SUDO} apt-get install -y \
-          build-essential cmake make devscripts debhelper rpm \
-          pybuild-plugin-pyproject python3 python3-setuptools dh-python \
-          libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev \
-          libserialport-dev libavahi-client-dev bison flex wget \
-          graphviz libavahi-common-dev bzip2 python3-pip
+    (${SUDO} apt-get install -y policykit-1 || ${SUDO} apt-get install -y polkitd pkexec) && \
+        ${SUDO} apt-get install python3-gi-cairo
+    python3 -m pip install requests
 
-${SUDO} rm -f /usr/lib/python*/EXTERNALLY-MANAGED
-python3 -m pip install requests
-
-# Install libiio
-if [[ "$STAGE" == "dev" ]]; then
-    wget https://raw.githubusercontent.com/analogdevicesinc/wiki-scripts/refs/heads/main/utils/cloudsmith_utils/cloudsmith_helper.py \
-	    -O /tmp/cloudsmith_helper.py
-
-    python3 /tmp/cloudsmith_helper.py \
-	    --method get_artifacts_from_location \
-	    --repo external \
-	    --package_version "libiio-v0~latest" \
-	    --package_name "$ARTIFACT_NAME"
+    # Install libiio
+    if [[ "$STAGE" == "dev" ]]; then
+        wget https://packages.analog.com/public/raw/versions/libiio-v0~latest/libiio-0.26.g-${ARTIFACT_NAME}
           
-    ${SUDO} dpkg -i *.deb
-    ${SUDO} ldconfig
-else
-    ${SUDO} apt-get install -y libiio-dev libiio0
-    ${SUDO} ldconfig
-fi
+        ${SUDO} dpkg -i *.deb
+        ${SUDO} ldconfig
+    else
+        ${SUDO} apt-get install -y libiio-dev
+        ${SUDO} ldconfig
+    fi
 
-# The libiio comes by default with the package, but for checking
-if [[ "$STAGE" == "rel" && ( "$ARCHITECTURE" == "arm64" || "$ARCHITECTURE" == "armhf" ) ]]; then
+    # The libiio comes by default with the package, but for checking
     ${SUDO} apt-get install -y python3-libiio
-else
-    python3 -m pip install pylibiio --no-binary :all:
 fi
