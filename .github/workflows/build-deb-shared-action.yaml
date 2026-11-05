@@ -31,29 +31,50 @@ jobs:
         include:
           - architecture: amd64
             runs-on: ubuntu-latest
+            distro: ubuntu-26.04
+            stage: rel
+          - architecture: amd64
+            runs-on: ubuntu-24.04
+            distro: ubuntu-24.04
             stage: rel
           - architecture: arm64
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            distro: kuiper
             stage: rel
           - architecture: armhf
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
             platform: linux/arm/v7
+            distro: kuiper
+            stage: rel
+          - architecture: arm64
+            runs-on: ubuntu-24.04-arm
+            container: debian:latest
+            distro: debian
+            stage: rel
+          - architecture: armhf
+            runs-on: ubuntu-24.04-arm
+            container: debian:latest
+            platform: linux/arm/v7
+            distro: debian
             stage: rel
           - architecture: amd64
             runs-on: ubuntu-latest
+            distro: ubuntu-26.04
             stage: dev
             libiio-artifact: Linux-Ubuntu-24.04.deb
           - architecture: arm64
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            distro: kuiper
             stage: dev
             libiio-artifact: Debian-13-arm64.deb
           - architecture: armhf
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
             platform: linux/arm/v7
+            distro: kuiper
             stage: dev
             libiio-artifact: Debian-13-armhf.deb
     runs-on: ${{ matrix.runs-on }}
@@ -94,7 +115,7 @@ jobs:
       - name: Upload debian artifacts to github
         uses: actions/upload-artifact@v7
         with:
-          name: colorimeter-debian-${{ matrix.architecture }}-${{ matrix.stage }}
+          name: colorimeter-${{ matrix.distro }}-${{ matrix.architecture }}-${{ matrix.stage }}
           path: |
             artifacts/
           if-no-files-found: error
