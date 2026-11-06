@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2026 Analog Devices, Inc.
+#
+# SPDX-License-Identifier: LicenseRef-ADI-BSD-5-Clause
 
 set -e
 
