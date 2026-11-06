@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2026 Analog Devices, Inc.
+#
+# SPDX-License-Identifier: LicenseRef-ADI-BSD-5-Clause
 
 set -e
 
@@ -19,9 +22,10 @@ if [[ "$ARCHITECTURE" == "armhf" ]]; then
             apt-get update && apt-get install -y \
             rpm pybuild-plugin-pyproject dh-python \
             libc6 libxml2-dev libcdk5-dev libaio-dev libusb-1.0-0-dev libserialport-dev \
-            libavahi-client-dev bison flex wget graphviz libavahi-common-dev bzip2 curl
+            libavahi-client-dev bison flex wget graphviz libavahi-common-dev bzip2 curl \
+            git ca-certificates
             (apt-get install -y policykit-1 || apt-get install -y polkitd pkexec) && \
-            apt-get install python3-gi-cairo
+            apt-get install -y python3-gi-cairo
         "
 
     # Install libiio
@@ -54,8 +58,7 @@ else
             libavahi-client-dev bison flex wget graphviz libavahi-common-dev bzip2 curl
 
     (${SUDO} apt-get install -y policykit-1 || ${SUDO} apt-get install -y polkitd pkexec) && \
-        ${SUDO} apt-get install python3-gi-cairo
-    python3 -m pip install requests
+        ${SUDO} apt-get install -y python3-gi-cairo
 
     # Install libiio
     if [[ "$STAGE" == "dev" ]]; then
