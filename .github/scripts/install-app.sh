@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (c) 2026 Analog Devices, Inc.
+#
+# SPDX-License-Identifier: LicenseRef-ADI-BSD-5-Clause
 
 set -e
 
@@ -10,6 +13,7 @@ if [[ "$ARCHITECTURE" == 'armhf' ]]; then
 
     docker exec \
         -e VERSION="$VERSION"\
+        -e VERSION_SUFFIX="$VERSION_SUFFIX" \
         -e WORKING_DIRECTORY="/workspace/colorimeter" \
         -e GITHUB_WORKSPACE="/workspace" \
         -e IGNORE_PATH="packaging" \
@@ -27,10 +31,11 @@ if [[ "$ARCHITECTURE" == 'armhf' ]]; then
         -w /workspace/colorimeter \
         -e ARCHITECTURE="$ARCHITECTURE" \
         -e VERSION="$VERSION" \
+        -e VERSION_SUFFIX="$VERSION_SUFFIX" \
         debian13-armhf \
         /bin/bash -c "
             set -e
-            apt-get install -y /workspace/artifacts/colorimeter_${VERSION}-1_${ARCHITECTURE}.deb
+            apt-get install -y /workspace/artifacts/colorimeter_${VERSION}-1${VERSION_SUFFIX}_${ARCHITECTURE}.deb
         "
 
     docker exec \
@@ -47,7 +52,7 @@ if [[ "$ARCHITECTURE" == 'armhf' ]]; then
 else
     [[ "$ARCHITECTURE" == "arm64" ]] && SUDO="" || SUDO="sudo"
     [[ "$STAGE" == "rel" ]] && \
-        ${SUDO} apt-get install -y "${ARTIFACTS_DIR}/colorimeter_${VERSION}-1_${ARCHITECTURE}.deb" || \
-        ${SUDO} dpkg -i "${ARTIFACTS_DIR}/colorimeter_${VERSION}-1_${ARCHITECTURE}.deb"
+        ${SUDO} apt-get install -y "${ARTIFACTS_DIR}/colorimeter_${VERSION}-1${VERSION_SUFFIX}_${ARCHITECTURE}.deb" || \
+        ${SUDO} dpkg -i "${ARTIFACTS_DIR}/colorimeter_${VERSION}-1${VERSION_SUFFIX}_${ARCHITECTURE}.deb"
     .github/scripts/verify_install.sh /usr
 fi
