@@ -1,3 +1,7 @@
+# Copyright (c) 2026 Analog Devices, Inc.
+#
+# SPDX-License-Identifier: LicenseRef-ADI-BSD-5-Clause
+
 name: Build Debian Packages
 
 permissions:
@@ -30,32 +34,63 @@ jobs:
       matrix:
         include:
           - architecture: amd64
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-26.04
+            distro: ubuntu-26.04
+            version-suffix: +Ubuntu26
+            stage: rel
+          - architecture: amd64
+            runs-on: ubuntu-24.04
+            distro: ubuntu-24.04
+            version-suffix: +Ubuntu24
             stage: rel
           - architecture: arm64
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            distro: kuiper
+            version-suffix: +Debian13
             stage: rel
           - architecture: armhf
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
             platform: linux/arm/v7
+            distro: kuiper
+            version-suffix: +Debian13
+            stage: rel
+          - architecture: arm64
+            runs-on: ubuntu-24.04-arm
+            container: debian:forky
+            distro: debian
+            version-suffix: +Debian14
+            stage: rel
+          - architecture: armhf
+            runs-on: ubuntu-24.04-arm
+            container: debian:forky
+            platform: linux/arm/v7
+            distro: debian
+            version-suffix: +Debian14
             stage: rel
           - architecture: amd64
-            runs-on: ubuntu-latest
+            runs-on: ubuntu-26.04
+            distro: ubuntu-26.04
+            version-suffix: +Ubuntu26
             stage: dev
-            libiio-artifact: Linux-Ubuntu-24.04.deb
+            libiio-artifact: Linux-Ubuntu-26.04.deb
           - architecture: arm64
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_64:latest
+            distro: kuiper
+            version-suffix: +Debian13
             stage: dev
             libiio-artifact: Debian-13-arm64.deb
           - architecture: armhf
             runs-on: ubuntu-24.04-arm
             container: docker.cloudsmith.io/adi/containers/kuiper_basic_32:latest
             platform: linux/arm/v7
+            distro: kuiper
+            version-suffix: +Debian13
             stage: dev
             libiio-artifact: Debian-13-armhf.deb
+            
     runs-on: ${{ matrix.runs-on }}
     needs: identify-version
     container: ${{ matrix.architecture == 'arm64' && matrix.container || '' }}
@@ -63,6 +98,7 @@ jobs:
       ARCHITECTURE: ${{ matrix.architecture }}
       CONTAINER: ${{ matrix.container }}
       VERSION: ${{needs.identify-version.outputs.app-version}}
+      VERSION_SUFFIX: ${{ matrix.version-suffix }}
       LIBIIO_ARTIFACT: ${{ matrix.libiio-artifact || '' }}
       STAGE: ${{ matrix.stage }}
       PLATFORM: ${{ matrix.platform }}
@@ -84,6 +120,7 @@ jobs:
             packaging
           control-path: ${{ matrix.stage == 'dev' && 'packaging/debian_dev' || 'packaging/debian' }}
           version: ${{ env.VERSION }}
+          version-suffix: ${{ matrix.version-suffix }}
       # Also debian creation for for armhf architecture
       - name: Install and verify application
         shell: sh
@@ -94,7 +131,7 @@ jobs:
       - name: Upload debian artifacts to github
         uses: actions/upload-artifact@v7
         with:
-          name: colorimeter-debian-${{ matrix.architecture }}-${{ matrix.stage }}
+          name: colorimeter-${{ matrix.distro }}-${{ matrix.architecture }}-${{ matrix.stage }}
           path: |
             artifacts/
           if-no-files-found: error
